@@ -1,5 +1,5 @@
 // ===================== STATE =====================
-const API_URL = "http://localhost:5001/api";
+const API_URL = "https://accountastudy.onrender.com/api";
 const API_ORIGIN = API_URL.replace(/\/api$/, "");
 
 /** Turn relative /uploads/... paths into absolute URLs for <img> when the UI is served from Live Server or another origin. */
