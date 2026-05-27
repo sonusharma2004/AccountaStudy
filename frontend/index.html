@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AccountaStudy — Student Accountability System</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,600;0,9..144,700;1,9..144,400&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- LIGHTBOX -->
+<div class="lightbox" id="lightbox" onclick="this.classList.remove('open')">
+  <img id="lightboxImg" src="" alt="">
+</div>
+
+<!-- AUTH SCREEN -->
+<div class="auth-screen" id="authScreen">
+  <div class="auth-left">
+    <div style="max-width:420px;position:relative;z-index:1">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:44px">
+        <div style="width:44px;height:44px;background:rgba(255,255,255,0.2);border-radius:12px;display:flex;align-items:center;justify-content:center;font-family:var(--display);font-weight:700;font-size:20px;color:#fff">A</div>
+        <span style="font-family:var(--display);font-size:22px;font-weight:700;color:#fff;letter-spacing:-0.5px">AccountaStudy</span>
+      </div>
+      <div style="font-family:var(--display);font-size:40px;font-weight:600;color:#fff;line-height:1.15;letter-spacing:-1px;margin-bottom:16px">
+        Your work,<br><em style="font-style:italic;opacity:0.9">verified daily.</em>
+      </div>
+      <div style="color:rgba(255,255,255,0.75);font-size:15px;line-height:1.7;margin-bottom:40px">
+        A student accountability system where consistency is tracked, screenshotted, and reviewed. No more faking productivity.
+      </div>
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <div style="display:flex;align-items:center;gap:12px;color:rgba(255,255,255,0.85);font-size:14px"><span style="width:22px;height:22px;background:rgba(255,255,255,0.15);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0">✓</span>Submit daily proof screenshots</div>
+        <div style="display:flex;align-items:center;gap:12px;color:rgba(255,255,255,0.85);font-size:14px"><span style="width:22px;height:22px;background:rgba(255,255,255,0.15);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0">✓</span>Admin assigns: ✅ Completed · 🟡 Half Day · ❌ Leave · 🔴 Fine</div>
+        <div style="display:flex;align-items:center;gap:12px;color:rgba(255,255,255,0.85);font-size:14px"><span style="width:22px;height:22px;background:rgba(255,255,255,0.15);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0">✓</span>Streaks, rankings & analytics that reflect truth</div>
+      </div>
+    </div>
+  </div>
+  <div class="auth-right">
+    <div style="width:100%">
+      <div id="loginView">
+        <div style="font-family:var(--display);font-size:28px;font-weight:600;color:var(--text);margin-bottom:4px;letter-spacing:-0.5px">Welcome back</div>
+        <div style="color:var(--text3);font-size:14px;margin-bottom:28px">Sign in to your AccountaStudy account</div>
+        <div class="form-group">
+          <label class="form-label">Email</label>
+          <input class="form-input" type="email" id="loginEmail" placeholder="you@school.edu" value="student@school.edu">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Password</label>
+          <input class="form-input" type="password" id="loginPass" placeholder="••••••••" value="pass123">
+        </div>
+        <button class="btn btn-primary w100" style="justify-content:center;padding:12px;font-size:15px;border-radius:var(--r2);margin-bottom:16px" onclick="doLogin()">Sign In</button>
+        <div style="text-align:center;font-size:13px;color:var(--text3)">
+          No account? <a style="color:var(--primary);cursor:pointer;font-weight:600" onclick="switchView('register')">Register free</a>
+        </div>
+        <div class="divider"></div>
+        <div style="background:var(--bg);border-radius:var(--r2);padding:12px 14px;font-size:12px;color:var(--text2)">
+          <div style="font-weight:700;margin-bottom:4px;color:var(--text)">Demo Accounts</div>
+          Student: student@school.edu / pass123<br>
+          Admin: admin@school.edu / admin123
+        </div>
+      </div>
+      <div id="registerView" style="display:none">
+        <div style="font-family:var(--display);font-size:28px;font-weight:600;color:var(--text);margin-bottom:4px;letter-spacing:-0.5px">Create account</div>
+        <div style="color:var(--text3);font-size:14px;margin-bottom:28px">Join your accountability cohort</div>
+        <div class="form-group">
+          <label class="form-label">Full Name</label>
+          <input class="form-input" type="text" id="regName" placeholder="Arjun Mehta">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Email</label>
+          <input class="form-input" type="email" id="regEmail" placeholder="you@school.edu">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Password</label>
+          <input class="form-input" type="password" id="regPass" placeholder="Min 6 characters">
+        </div>
+        <button class="btn btn-primary w100" style="justify-content:center;padding:12px;font-size:15px;border-radius:var(--r2);margin-bottom:16px" onclick="doRegister()">Create Account</button>
+        <div style="text-align:center;font-size:13px;color:var(--text3)">
+          Already registered? <a style="color:var(--primary);cursor:pointer;font-weight:600" onclick="switchView('login')">Sign in</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MAIN APP -->
+<div id="app" style="display:none">
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+    <div class="logo">
+      <div class="logo-icon">A</div>
+      <div class="logo-name">Accounta<span>Study</span></div>
+    </div>
+    <div style="overflow-y:auto;flex:1">
+      <div class="nav-group-label">Workspace</div>
+      <div class="nav-item active" onclick="nav('dashboard')" id="nav-dashboard">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+        Dashboard
+      </div>
+      <div class="nav-item" onclick="nav('submit')" id="nav-submit">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        Submit Proof
+        <span class="nav-badge amber" id="submitBadge" style="display:none">!</span>
+      </div>
+      <div class="nav-item" onclick="nav('timer')" id="nav-timer">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 15"/></svg>
+        Study Timer
+      </div>
+      <div class="nav-item" onclick="nav('leaderboard')" id="nav-leaderboard">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="18 20 18 10"/><polyline points="12 20 12 4"/><polyline points="6 20 6 14"/></svg>
+        Leaderboard
+      </div>
+      <div class="nav-item" onclick="nav('analytics')" id="nav-analytics">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+        Analytics
+      </div>
+      <div class="nav-group-label">Admin</div>
+      <div class="nav-item" onclick="nav('admin-verify')" id="nav-admin-verify" style="display:none">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+        Verify Submissions
+        <span class="nav-badge" id="pendingBadge">0</span>
+      </div>
+      <div class="nav-item" onclick="nav('admin-users')" id="nav-admin-users" style="display:none">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        Student Manager
+      </div>
+    </div>
+    <div class="user-footer">
+      <div class="user-pill">
+        <div class="u-avatar" id="sbAvatar">JD</div>
+        <div>
+          <div class="u-name" id="sbName">John Doe</div>
+          <div class="u-role" id="sbRole">Student</div>
+        </div>
+        <div class="u-streak" id="sbStreak">🔥 0</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MAIN -->
+  <div class="main">
+    <div class="topbar">
+      <div>
+        <div class="topbar-title" id="topbarTitle">Dashboard</div>
+        <div class="topbar-sub" id="topbarSub">Monday, good morning!</div>
+      </div>
+      <div class="topbar-right">
+        <div id="deadlineTag"></div>
+        <button class="btn btn-primary btn-sm" onclick="nav('submit')" id="submitBtn">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          Submit Today's Proof
+        </button>
+      </div>
+    </div>
+
+    <!-- ==================== PAGES ==================== -->
+
+    <!-- DASHBOARD -->
+    <div class="page active" id="page-dashboard">
+      <div id="dashBanner" class="mb-20"></div>
+      <div class="grid g4 mb-16">
+        <div class="stat-card">
+          <div class="stat-icon-wrap" style="background:#EFF6FF"><span style="font-size:20px">⏱</span></div>
+          <div class="stat-label">Today's Study</div>
+          <div class="stat-val" id="dToday">0h 0m</div>
+          <div class="stat-sub" style="color:var(--primary)">Session active or recent</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon-wrap" style="background:#F0FDF4"><span style="font-size:20px">🔥</span></div>
+          <div class="stat-label">Current Streak</div>
+          <div class="stat-val" id="dStreak">0 days</div>
+          <div class="stat-sub" style="color:var(--success-dark)">Keep it going!</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon-wrap" style="background:#FFFBEB"><span style="font-size:20px">🏆</span></div>
+          <div class="stat-label">Your Rank</div>
+          <div class="stat-val" id="dRank">#—</div>
+          <div class="stat-sub" style="color:var(--warning-dark)">Leaderboard position</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon-wrap" style="background:#F5F3FF"><span style="font-size:20px">📋</span></div>
+          <div class="stat-label">Today's Status</div>
+          <div id="dStatus"><span class="status-badge s-pending">⏳ Pending</span></div>
+          <div class="stat-sub text-muted mt-8">Awaiting verification</div>
+        </div>
+      </div>
+
+      <div class="grid g2 mb-16">
+        <div class="card">
+          <div class="flex-b mb-12"><div class="section-heading" style="margin:0">Weekly Study Hours</div><span class="pill pill-blue">This Week</span></div>
+          <div class="chart-wrap" style="height:200px"><canvas id="weekChart"></canvas></div>
+        </div>
+        <div class="card">
+          <div class="flex-b mb-12"><div class="section-heading" style="margin:0">Subject Distribution</div><span class="pill pill-green">All Time</span></div>
+          <div class="chart-wrap" style="height:200px"><canvas id="subjectChart"></canvas></div>
+        </div>
+      </div>
+
+      <div class="grid g2">
+        <div class="card">
+          <div class="section-heading">Recent Sessions</div>
+          <div id="recentSessions"></div>
+        </div>
+        <div class="card">
+          <div class="section-heading">Submission History</div>
+          <div id="subHistory"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SUBMIT PROOF PAGE -->
+    <div class="page" id="page-submit">
+      <div class="grid g2-1" style="align-items:start;gap:20px">
+        <div>
+          <div id="subWindowBanner" class="mb-20"></div>
+
+          <div class="card">
+            <div class="modal-title" style="font-size:20px">📸 Daily Proof Submission</div>
+            <div class="modal-sub">Submit your study evidence for today. Admin will verify and assign your daily status.</div>
+
+            <div class="form-group">
+              <label class="form-label">Subject Studied</label>
+              <select class="form-input" id="subSubject">
+                <option>Mathematics</option>
+                <option>Physics</option>
+                <option>Chemistry</option>
+                <option>Biology</option>
+                <option>Programming</option>
+                <option>History</option>
+                <option>Literature</option>
+                <option>Economics</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Study Timer Screenshot <span style="color:var(--error)">*</span></label>
+              <div class="upload-zone" id="timerUploadZone" onclick="triggerUpload('timerFile')">
+                <input type="file" id="timerFile" accept="image/*" onchange="handleFileUpload(this,'timerPreview','timerUploadZone')">
+                <div id="timerUploadContent">
+                  <div style="font-size:28px;margin-bottom:8px">🖥</div>
+                  <div style="font-weight:600;font-size:14px;color:var(--text);margin-bottom:4px">Upload Timer Screenshot</div>
+                  <div style="font-size:12px;color:var(--text3)">PNG, JPG up to 10MB · Click or drag</div>
+                </div>
+                <img id="timerPreview" class="upload-preview" style="display:none">
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Questions Solved Screenshot <span style="color:var(--error)">*</span></label>
+              <div class="upload-zone" id="questUploadZone" onclick="triggerUpload('questFile')">
+                <input type="file" id="questFile" accept="image/*" onchange="handleFileUpload(this,'questPreview','questUploadZone')">
+                <div id="questUploadContent">
+                  <div style="font-size:28px;margin-bottom:8px">📝</div>
+                  <div style="font-weight:600;font-size:14px;color:var(--text);margin-bottom:4px">Upload Questions Screenshot</div>
+                  <div style="font-size:12px;color:var(--text3)">Show your solved work · PNG, JPG</div>
+                </div>
+                <img id="questPreview" class="upload-preview" style="display:none">
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Study Notes (Optional)</label>
+              <textarea class="form-input" id="subNotes" placeholder="What did you study today? Any challenges? Topics covered..."></textarea>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Hours Studied</label>
+              <input class="form-input" type="number" id="subHours" placeholder="e.g. 4.5" min="0" max="24" step="0.5">
+            </div>
+
+            <button class="btn btn-primary w100" style="justify-content:center;padding:13px;font-size:15px;border-radius:var(--r2)" onclick="submitProof()">
+              📤 Submit Daily Proof
+            </button>
+          </div>
+        </div>
+
+        <!-- Right panel: rules + today's status -->
+        <div>
+          <div class="card mb-16" style="border-left:3px solid var(--primary)">
+            <div style="font-weight:700;font-size:14px;color:var(--text);margin-bottom:12px">📋 Submission Guidelines</div>
+            <div style="display:flex;flex-direction:column;gap:10px">
+              <div style="display:flex;gap:10px;font-size:13px;color:var(--text2)"><span style="color:var(--primary);font-weight:700;flex-shrink:0">⏰</span>Submit between <strong>6:00 PM – 7:30 PM</strong></div>
+              <div style="display:flex;gap:10px;font-size:13px;color:var(--text2)"><span style="color:var(--primary);font-weight:700;flex-shrink:0">📸</span>Timer screenshot must show today's date</div>
+              <div style="display:flex;gap:10px;font-size:13px;color:var(--text2)"><span style="color:var(--primary);font-weight:700;flex-shrink:0">📝</span>Questions screenshot must show solved problems</div>
+              <div style="display:flex;gap:10px;font-size:13px;color:var(--text2)"><span style="color:var(--primary);font-weight:700;flex-shrink:0">✅</span>Admin reviews and assigns status by 8 PM</div>
+            </div>
+          </div>
+
+          <div class="card mb-16">
+            <div style="font-weight:700;font-size:14px;color:var(--text);margin-bottom:14px">📊 Status Explained</div>
+            <div style="display:flex;flex-direction:column;gap:10px">
+              <div style="display:flex;align-items:center;gap:10px">
+                <span class="status-badge s-completed">✅ Completed</span>
+                <span style="font-size:13px;color:var(--text2)">Full day · +10 streak pts</span>
+              </div>
+              <div style="display:flex;align-items:center;gap:10px">
+                <span class="status-badge s-halfday">🟡 Half Day</span>
+                <span style="font-size:13px;color:var(--text2)">Partial work · +3 pts</span>
+              </div>
+              <div style="display:flex;align-items:center;gap:10px">
+                <span class="status-badge s-leave">❌ Leave</span>
+                <span style="font-size:13px;color:var(--text2)">Approved absence · streak safe</span>
+              </div>
+              <div style="display:flex;align-items:center;gap:10px">
+                <span class="status-badge s-fine">🔴 Fine</span>
+                <span style="font-size:13px;color:var(--text2)">No submission · streak broken</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="card" id="todaySubCard">
+            <div style="font-weight:700;font-size:14px;color:var(--text);margin-bottom:12px">Today's Submission</div>
+            <div id="todaySubStatus"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TIMER PAGE -->
+    <div class="page" id="page-timer">
+      <div style="max-width:640px;margin:0 auto">
+        <div class="card mb-16">
+          <div style="margin-bottom:24px">
+            <label class="form-label">Subject</label>
+            <div style="display:flex;flex-wrap:wrap;gap:8px" id="subjectPicker">
+              <div class="pill pill-blue" style="cursor:pointer;padding:6px 14px;font-size:13px" onclick="pickSubject(this,'Mathematics')">📐 Math</div>
+              <div class="pill pill-gray" style="cursor:pointer;padding:6px 14px;font-size:13px" onclick="pickSubject(this,'Physics')">⚛️ Physics</div>
+              <div class="pill pill-gray" style="cursor:pointer;padding:6px 14px;font-size:13px" onclick="pickSubject(this,'Chemistry')">🧪 Chem</div>
+              <div class="pill pill-gray" style="cursor:pointer;padding:6px 14px;font-size:13px" onclick="pickSubject(this,'Programming')">💻 Code</div>
+              <div class="pill pill-gray" style="cursor:pointer;padding:6px 14px;font-size:13px" onclick="pickSubject(this,'Biology')">🔬 Bio</div>
+              <div class="pill pill-gray" style="cursor:pointer;padding:6px 14px;font-size:13px" onclick="pickSubject(this,'History')">📜 History</div>
+            </div>
+          </div>
+
+          <div class="timer-face mb-24">
+            <svg width="260" height="260" viewBox="0 0 260 260">
+              <circle cx="130" cy="130" r="116" fill="none" stroke="#E2E8F0" stroke-width="10"/>
+              <circle id="timerRing" cx="130" cy="130" r="116" fill="none" stroke="#3B82F6" stroke-width="10"
+                stroke-dasharray="728.97" stroke-dashoffset="728.97" stroke-linecap="round"
+                style="transition:stroke-dashoffset 1s linear"/>
+            </svg>
+            <div class="timer-inner">
+              <div class="timer-digits" id="timerDisp">00:00:00</div>
+              <div class="timer-subject" id="timerSubLabel">MATHEMATICS</div>
+            </div>
+          </div>
+
+          <div style="display:flex;gap:12px;justify-content:center">
+            <button class="btn btn-primary" style="padding:12px 28px;border-radius:40px;font-size:15px" id="tStartBtn" onclick="tStart()">▶ Start</button>
+            <button class="btn" style="padding:12px 20px;border-radius:40px;background:var(--warning-light);color:var(--warning-dark);border:1.5px solid rgba(245,158,11,0.3);display:none" id="tPauseBtn" onclick="tPause()">⏸ Pause</button>
+            <button class="btn" style="padding:12px 20px;border-radius:40px;background:var(--success-light);color:var(--success-dark);border:1.5px solid rgba(34,197,94,0.3);display:none" id="tResumeBtn" onclick="tResume()">▶ Resume</button>
+            <button class="btn btn-danger" style="padding:12px 20px;border-radius:40px;display:none" id="tStopBtn" onclick="tStop()">⏹ Stop</button>
+          </div>
+          <div style="text-align:center;font-size:12px;color:var(--text3);margin-top:12px" id="tNote">Press Start to begin a study session</div>
+        </div>
+
+        <div class="card">
+          <div class="section-heading">Today's Sessions</div>
+          <div id="timerSessions"></div>
+        </div>
+
+        <div style="margin-top:16px;padding:14px 16px;background:var(--primary-light);border:1px solid rgba(59,130,246,0.2);border-radius:var(--r2)">
+          <div style="font-weight:600;font-size:13px;color:var(--primary-dark);margin-bottom:4px">💡 Reminder</div>
+          <div style="font-size:13px;color:var(--text2)">Take a screenshot of this timer before stopping for your daily proof submission!</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- LEADERBOARD -->
+    <div class="page" id="page-leaderboard">
+      <div class="tabs mb-20">
+        <div class="tab active" onclick="lbSwitch(this,'daily')">Daily</div>
+        <div class="tab" onclick="lbSwitch(this,'weekly')">Weekly</div>
+        <div class="tab" onclick="lbSwitch(this,'overall')">All Time</div>
+      </div>
+      <div class="grid g1-2" style="align-items:start">
+        <div class="card">
+          <div class="section-heading">Your Standing</div>
+          <div style="text-align:center;padding:20px 0">
+            <div style="font-family:var(--display);font-size:64px;font-weight:600;color:var(--primary);line-height:1" id="myRankBig">#—</div>
+            <div style="font-size:14px;color:var(--text2);margin-top:8px" id="myRankSub">out of all students</div>
+            <div class="divider"></div>
+            <div class="grid g2" style="gap:12px;text-align:left;margin-top:12px">
+              <div style="background:var(--bg);border-radius:var(--r2);padding:12px">
+                <div class="text-xs text-muted fw-600" style="text-transform:uppercase;letter-spacing:0.5px;margin-bottom:3px">Total Hours</div>
+                <div style="font-family:var(--display);font-size:20px;font-weight:600;color:var(--text)" id="myTotalHrs">0h</div>
+              </div>
+              <div style="background:var(--bg);border-radius:var(--r2);padding:12px">
+                <div class="text-xs text-muted fw-600" style="text-transform:uppercase;letter-spacing:0.5px;margin-bottom:3px">Streak</div>
+                <div style="font-family:var(--display);font-size:20px;font-weight:600;color:var(--warning)" id="myStreakLb">0 days</div>
+              </div>
+              <div style="background:var(--bg);border-radius:var(--r2);padding:12px">
+                <div class="text-xs text-muted fw-600" style="text-transform:uppercase;letter-spacing:0.5px;margin-bottom:3px">Completed</div>
+                <div style="font-family:var(--display);font-size:20px;font-weight:600;color:var(--success-dark)" id="myCompleted">0</div>
+              </div>
+              <div style="background:var(--bg);border-radius:var(--r2);padding:12px">
+                <div class="text-xs text-muted fw-600" style="text-transform:uppercase;letter-spacing:0.5px;margin-bottom:3px">Fines</div>
+                <div style="font-family:var(--display);font-size:20px;font-weight:600;color:var(--error)" id="myFines">0</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="section-heading">Rankings</div>
+          <div id="lbList"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ANALYTICS -->
+    <div class="page" id="page-analytics">
+      <div class="grid g4 mb-16">
+        <div class="stat-card"><div class="stat-icon-wrap" style="background:var(--primary-light)">📈</div><div class="stat-label">Consistency</div><div class="stat-val" id="aConsist">—%</div><div class="stat-sub" style="color:var(--primary)">Days submitted / total</div></div>
+        <div class="stat-card"><div class="stat-icon-wrap" style="background:var(--success-light)">⚡</div><div class="stat-label">Avg Daily Hours</div><div class="stat-val" id="aAvgHrs">—h</div><div class="stat-sub" style="color:var(--success-dark)">Study average</div></div>
+        <div class="stat-card"><div class="stat-icon-wrap" style="background:var(--warning-light)">🎯</div><div class="stat-label">Goal Hit Rate</div><div class="stat-val" id="aGoal">—%</div><div class="stat-sub" style="color:var(--warning-dark)">Days ≥ 4h</div></div>
+        <div class="stat-card"><div class="stat-icon-wrap" style="background:var(--error-light)">🔴</div><div class="stat-label">Total Fines</div><div class="stat-val" id="aFines">—</div><div class="stat-sub" style="color:var(--error-dark)">Missed days</div></div>
+      </div>
+      <div class="grid g2 mb-16">
+        <div class="card">
+          <div class="flex-b mb-12"><div class="section-heading" style="margin:0">30-Day Study Trend</div><span class="pill pill-blue">Hours/day</span></div>
+          <div class="chart-wrap" style="height:220px"><canvas id="trendChart"></canvas></div>
+        </div>
+        <div class="card">
+          <div class="flex-b mb-12"><div class="section-heading" style="margin:0">Status Breakdown</div><span class="pill pill-green">All Submissions</span></div>
+          <div class="chart-wrap" style="height:220px"><canvas id="statusChart"></canvas></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="flex-b mb-12">
+          <div class="section-heading" style="margin:0">Activity Heatmap</div>
+          <span class="pill pill-gray">Past 3 months</span>
+        </div>
+        <div class="act-grid" id="actGrid"></div>
+        <div style="display:flex;align-items:center;gap:6px;margin-top:10px;font-size:11.5px;color:var(--text3)">
+          Less
+          <div class="act-cell" style="width:12px;height:12px;border-radius:2px;flex-shrink:0"></div>
+          <div class="act-cell act-1" style="width:12px;height:12px;border-radius:2px;flex-shrink:0"></div>
+          <div class="act-cell act-3" style="width:12px;height:12px;border-radius:2px;flex-shrink:0"></div>
+          <div class="act-cell act-5" style="width:12px;height:12px;border-radius:2px;flex-shrink:0"></div>
+          More
+        </div>
+      </div>
+    </div>
+
+    <!-- ADMIN: VERIFY SUBMISSIONS -->
+    <div class="page" id="page-admin-verify">
+      <div style="background:var(--warning-light);border:1px solid rgba(245,158,11,0.3);border-radius:var(--r2);padding:14px 18px;margin-bottom:20px;display:flex;align-items:center;gap:12px">
+        <span style="font-size:18px">⚠️</span>
+        <div>
+          <div style="font-weight:700;font-size:13.5px;color:var(--warning-dark)">Admin Verification Panel</div>
+          <div style="font-size:12.5px;color:var(--text2)">Review student submissions and assign daily status. Students are notified automatically.</div>
+        </div>
+        <div class="pill pill-amber" style="margin-left:auto;flex-shrink:0" id="pendingCount">0 pending</div>
+      </div>
+
+      <div class="tabs">
+        <div class="tab active" onclick="adminFilter(this,'all')">All</div>
+        <div class="tab" onclick="adminFilter(this,'pending')">Pending</div>
+        <div class="tab" onclick="adminFilter(this,'verified')">Verified</div>
+      </div>
+
+      <div class="grid g3" id="submissionGrid" style="gap:16px"></div>
+      <div id="noSubmissions" style="display:none;text-align:center;padding:60px 0">
+        <div style="font-size:48px;margin-bottom:12px">📭</div>
+        <div style="font-weight:600;color:var(--text);font-size:16px">No submissions</div>
+        <div style="color:var(--text3);font-size:13px;margin-top:4px">Students haven't submitted yet today</div>
+      </div>
+    </div>
+
+    <!-- ADMIN: USER MANAGER -->
+    <div class="page" id="page-admin-users">
+      <div class="card">
+        <div class="flex-b mb-16">
+          <div class="section-heading" style="margin:0">Student Manager</div>
+          <input class="form-input" placeholder="Search students…" style="width:220px;padding:7px 12px" oninput="filterStudents(this.value)">
+        </div>
+        <table class="data-table" id="adminUsersTable">
+          <thead>
+            <tr>
+              <th>Student</th>
+              <th>Email</th>
+              <th>Total Study</th>
+              <th>Streak</th>
+              <th>Completed</th>
+              <th>Fines</th>
+              <th>Last Status</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody id="adminUsersTbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+  </div><!-- end .main -->
+</div><!-- end #app -->
+
+<!-- VERIFY MODAL -->
+<div class="overlay" id="verifyModal">
+  <div class="modal" style="max-width:620px;width:92vw">
+    <div class="modal-title" id="vModalName">Student Name</div>
+    <div class="modal-sub" id="vModalDate">Submission for today</div>
+    <div class="sub-screenshots mb-16" id="vModalScreenshots"></div>
+    <div style="background:var(--bg);border-radius:var(--r2);padding:14px;margin-bottom:18px">
+      <div style="font-size:12px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px">Notes from student</div>
+      <div style="font-size:14px;color:var(--text)" id="vModalNotes">—</div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:18px">
+      <div style="background:var(--bg);border-radius:var(--r2);padding:12px"><div class="text-xs text-muted fw-600" style="letter-spacing:0.5px;text-transform:uppercase;margin-bottom:3px">Subject</div><div style="font-weight:600;font-size:14px;color:var(--text)" id="vModalSubject">—</div></div>
+      <div style="background:var(--bg);border-radius:var(--r2);padding:12px"><div class="text-xs text-muted fw-600" style="letter-spacing:0.5px;text-transform:uppercase;margin-bottom:3px">Hours Claimed</div><div style="font-weight:600;font-size:14px;color:var(--text)" id="vModalHours">—</div></div>
+    </div>
+    <div style="font-weight:700;font-size:13px;color:var(--text);margin-bottom:10px">Assign Status:</div>
+    <div class="status-selector mb-16" id="vStatusSelector">
+      <div class="status-opt so-completed selected" onclick="selectStatus(this,'completed')">✅ Completed</div>
+      <div class="status-opt so-halfday" onclick="selectStatus(this,'halfday')">🟡 Half Day</div>
+      <div class="status-opt so-leave" onclick="selectStatus(this,'leave')">❌ Leave</div>
+      <div class="status-opt so-fine" onclick="selectStatus(this,'fine')">🔴 Fine</div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Admin Notes (optional)</label>
+      <textarea class="form-input" id="vAdminNotes" placeholder="Feedback for the student…" style="min-height:64px"></textarea>
+    </div>
+    <div style="display:flex;gap:10px;justify-content:flex-end">
+      <button class="btn btn-ghost" onclick="closeVerifyModal()">Cancel</button>
+      <button class="btn btn-success" onclick="saveVerification()">✓ Save Verification</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,23 @@
+# Dependencies
+node_modules/
+
+# Environment secrets
+.env
+
+# Uploaded files
+backend/uploads/timer/*
+backend/uploads/questions/*
+!backend/uploads/timer/.gitkeep
+!backend/uploads/questions/.gitkeep
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+
+# Logs
+*.log
+npm-debug.log*
