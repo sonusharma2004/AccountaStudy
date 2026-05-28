@@ -742,6 +742,111 @@ function renderAnalytics(){
   document.getElementById('aFines').textContent=fines;
 }
 
+function openAnalyticsModal(type){
+  const u=S.user; if(!u) return;
+  const uid=u._id||u.id;
+  const subs=S.submissions.filter(s=>{
+    const subUid=s.userId?._id||s.userId;
+    return (subUid===uid||subUid===String(uid)||subUid==null)&&s.status!=='pending';
+  });
+  const total=subs.length;
+  const completed=subs.filter(s=>s.status==='completed');
+  const fines=subs.filter(s=>s.status==='fine');
+  const halfdays=subs.filter(s=>s.status==='halfday');
+  const leaves=subs.filter(s=>s.status==='leave');
+  const avgHrs=total>0?(subs.reduce((a,s)=>a+(s.hours||s.hoursStudied||0),0)/total).toFixed(1):0;
+  const goalDays=subs.filter(s=>(s.hours||s.hoursStudied||0)>=4);
+  const consistPct=total>0?Math.round(completed.length/total*100):0;
+  const goalPct=total>0?Math.round(goalDays.length/total*100):0;
+  let html='';
+  if(type==='consistency'){
+    html=`<div style="text-align:center;margin-bottom:24px">
+      <div style="font-size:48px;margin-bottom:8px">📈</div>
+      <div style="font-size:36px;font-weight:700;color:var(--primary)">${consistPct}%</div>
+      <div style="color:var(--text3);font-size:14px">Consistency Rate</div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px">
+      <div style="background:var(--bg);border-radius:10px;padding:14px;text-align:center">
+        <div style="font-size:22px;font-weight:700;color:var(--success)">${completed.length}</div>
+        <div style="font-size:12px;color:var(--text3)">✅ Completed days</div>
+      </div>
+      <div style="background:var(--bg);border-radius:10px;padding:14px;text-align:center">
+        <div style="font-size:22px;font-weight:700;color:var(--text2)">${total}</div>
+        <div style="font-size:12px;color:var(--text3)">📅 Total days tracked</div>
+      </div>
+    </div>
+    <div style="font-weight:600;margin-bottom:12px">Recent Completed Days</div>
+    ${completed.slice(0,5).map(s=>`<div style="display:flex;justify-content:space-between;padding:10px 14px;background:var(--bg);border-radius:10px;margin-bottom:8px">
+      <div style="color:var(--text2);font-size:13px">${s.date}</div>
+      <div style="color:var(--success);font-weight:600">${(s.hours||s.hoursStudied||0).toFixed(1)}h</div>
+    </div>`).join('')||'<div style="color:var(--text3);text-align:center;padding:16px">No completed days yet.</div>'}`;
+  } else if(type==='avghrs'){
+    const bySubject={};
+    subs.forEach(s=>{const subj=s.subject||'Other';bySubject[subj]=(bySubject[subj]||0)+(s.hours||s.hoursStudied||0);});
+    html=`<div style="text-align:center;margin-bottom:24px">
+      <div style="font-size:48px;margin-bottom:8px">⚡</div>
+      <div style="font-size:36px;font-weight:700;color:var(--success)">${avgHrs}h</div>
+      <div style="color:var(--text3);font-size:14px">Average daily study hours</div>
+      <div style="font-size:13px;color:var(--text2);margin-top:4px">Total: <strong>${subs.reduce((a,s)=>a+(s.hours||s.hoursStudied||0),0).toFixed(1)}h</strong> across ${total} days</div>
+    </div>
+    <div style="font-weight:600;margin-bottom:12px">Hours by Subject</div>
+    ${Object.entries(bySubject).sort((a,b)=>b[1]-a[1]).map(([subj,hrs])=>`
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:var(--bg);border-radius:10px;margin-bottom:8px">
+        <div style="font-weight:500">${subj}</div>
+        <div style="color:var(--success);font-weight:600">${hrs.toFixed(1)}h</div>
+      </div>`).join('')||'<div style="color:var(--text3);text-align:center;padding:16px">No data yet.</div>'}`;
+  } else if(type==='goal'){
+    html=`<div style="text-align:center;margin-bottom:24px">
+      <div style="font-size:48px;margin-bottom:8px">🎯</div>
+      <div style="font-size:36px;font-weight:700;color:var(--warning)">${goalPct}%</div>
+      <div style="color:var(--text3);font-size:14px">Goal Hit Rate (days ≥ 4h)</div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px">
+      <div style="background:var(--bg);border-radius:10px;padding:14px;text-align:center">
+        <div style="font-size:22px;font-weight:700;color:var(--warning)">${goalDays.length}</div>
+        <div style="font-size:12px;color:var(--text3)">🎯 Goal days (≥4h)</div>
+      </div>
+      <div style="background:var(--bg);border-radius:10px;padding:14px;text-align:center">
+        <div style="font-size:22px;font-weight:700;color:var(--text2)">${total-goalDays.length}</div>
+        <div style="font-size:12px;color:var(--text3)">📉 Below goal days</div>
+      </div>
+    </div>
+    <div style="font-weight:600;margin-bottom:12px">Goal Achieved Days</div>
+    ${goalDays.slice(0,5).map(s=>`<div style="display:flex;justify-content:space-between;padding:10px 14px;background:var(--bg);border-radius:10px;margin-bottom:8px">
+      <div style="color:var(--text2);font-size:13px">${s.date}</div>
+      <div style="color:var(--warning);font-weight:600">${(s.hours||s.hoursStudied||0).toFixed(1)}h ✓</div>
+    </div>`).join('')||'<div style="color:var(--text3);text-align:center;padding:16px">No goal days yet. Aim for 4h/day!</div>'}`;
+  } else if(type==='fines'){
+    html=`<div style="text-align:center;margin-bottom:24px">
+      <div style="font-size:48px;margin-bottom:8px">🔴</div>
+      <div style="font-size:36px;font-weight:700;color:var(--error)">${fines.length}</div>
+      <div style="color:var(--text3);font-size:14px">Total Fines</div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:16px">
+      <div style="background:var(--bg);border-radius:10px;padding:12px;text-align:center">
+        <div style="font-size:20px;font-weight:700;color:var(--error)">${fines.length}</div>
+        <div style="font-size:11px;color:var(--text3)">🔴 Fines</div>
+      </div>
+      <div style="background:var(--bg);border-radius:10px;padding:12px;text-align:center">
+        <div style="font-size:20px;font-weight:700;color:var(--text2)">${leaves.length}</div>
+        <div style="font-size:11px;color:var(--text3)">❌ Leaves</div>
+      </div>
+      <div style="background:var(--bg);border-radius:10px;padding:12px;text-align:center">
+        <div style="font-size:20px;font-weight:700;color:var(--warning)">${halfdays.length}</div>
+        <div style="font-size:11px;color:var(--text3)">🟡 Half Days</div>
+      </div>
+    </div>
+    <div style="font-weight:600;margin-bottom:12px">Fine History</div>
+    ${fines.slice(0,5).map(s=>`<div style="display:flex;justify-content:space-between;padding:10px 14px;background:#FFF5F5;border-radius:10px;margin-bottom:8px">
+      <div style="color:var(--text2);font-size:13px">${s.date}</div>
+      <span class="status-badge s-fine">🔴 Fine</span>
+    </div>`).join('')||'<div style="color:var(--success);text-align:center;padding:16px;font-weight:600">🎉 No fines! Great work!</div>'}`;
+  }
+  document.getElementById('statModalContent').innerHTML=html;
+  const modal=document.getElementById('statModal');
+  modal.style.display='flex';
+}
+
 function buildActGrid(){
   const grid=document.getElementById('actGrid');
   const weeks=13;

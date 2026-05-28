@@ -422,10 +422,10 @@
     <!-- ANALYTICS -->
     <div class="page" id="page-analytics">
       <div class="grid g4 mb-16">
-        <div class="stat-card"><div class="stat-icon-wrap" style="background:var(--primary-light)">📈</div><div class="stat-label">Consistency</div><div class="stat-val" id="aConsist">—%</div><div class="stat-sub" style="color:var(--primary)">Days submitted / total</div></div>
-        <div class="stat-card"><div class="stat-icon-wrap" style="background:var(--success-light)">⚡</div><div class="stat-label">Avg Daily Hours</div><div class="stat-val" id="aAvgHrs">—h</div><div class="stat-sub" style="color:var(--success-dark)">Study average</div></div>
-        <div class="stat-card"><div class="stat-icon-wrap" style="background:var(--warning-light)">🎯</div><div class="stat-label">Goal Hit Rate</div><div class="stat-val" id="aGoal">—%</div><div class="stat-sub" style="color:var(--warning-dark)">Days ≥ 4h</div></div>
-        <div class="stat-card"><div class="stat-icon-wrap" style="background:var(--error-light)">🔴</div><div class="stat-label">Total Fines</div><div class="stat-val" id="aFines">—</div><div class="stat-sub" style="color:var(--error-dark)">Missed days</div></div>
+        <div class="stat-card" style="cursor:pointer" onclick="openAnalyticsModal('consistency')"><div class="stat-icon-wrap" style="background:var(--primary-light)">📈</div><div class="stat-label">Consistency</div><div class="stat-val" id="aConsist">—%</div><div class="stat-sub" style="color:var(--primary)">Days submitted / total</div></div>
+        <div class="stat-card" style="cursor:pointer" onclick="openAnalyticsModal('avghrs')"><div class="stat-icon-wrap" style="background:var(--success-light)">⚡</div><div class="stat-label">Avg Daily Hours</div><div class="stat-val" id="aAvgHrs">—h</div><div class="stat-sub" style="color:var(--success-dark)">Study average</div></div>
+        <div class="stat-card" style="cursor:pointer" onclick="openAnalyticsModal('goal')"><div class="stat-icon-wrap" style="background:var(--warning-light)">🎯</div><div class="stat-label">Goal Hit Rate</div><div class="stat-val" id="aGoal">—%</div><div class="stat-sub" style="color:var(--warning-dark)">Days ≥ 4h</div></div>
+        <div class="stat-card" style="cursor:pointer" onclick="openAnalyticsModal('fines')"><div class="stat-icon-wrap" style="background:var(--error-light)">🔴</div><div class="stat-label">Total Fines</div><div class="stat-val" id="aFines">—</div><div class="stat-sub" style="color:var(--error-dark)">Missed days</div></div>
       </div>
       <div class="grid g2 mb-16">
         <div class="card">
