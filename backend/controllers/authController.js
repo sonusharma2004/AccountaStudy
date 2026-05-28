@@ -11,6 +11,7 @@ const formatUser = (user, token) => ({
     name: user.name,
     email: user.email,
     role: user.role,
+    studentType: user.studentType || 'fulltime',
     avatar: user.avatar || user.getInitials(),
     streak: user.streak,
     totalStudyHours: user.totalStudyHours,
@@ -31,7 +32,7 @@ const formatUser = (user, token) => ({
 // ────────────────────────────────────────────
 const register = async (req, res, next) => {
   try {
-    const { name, email, password, role } = req.body;
+    const { name, email, password, role, studentType } = req.body;
 
     // Basic validation
     if (!name || !email || !password) {
@@ -40,8 +41,9 @@ const register = async (req, res, next) => {
 
     // Don't allow registering as admin via API (admin created via seed)
     const assignedRole = role === 'admin' ? 'student' : (role || 'student');
+    const assignedType = ['intern', 'fulltime'].includes(studentType) ? studentType : 'fulltime';
 
-    const user = await User.create({ name, email, password, role: assignedRole });
+    const user = await User.create({ name, email, password, role: assignedRole, studentType: assignedType });
     const token = generateToken(user._id);
 
     res.status(201).json(formatUser(user, token));
@@ -94,6 +96,7 @@ const getMe = async (req, res, next) => {
         name: user.name,
         email: user.email,
         role: user.role,
+        studentType: user.studentType || 'fulltime',
         avatar: user.avatar || user.getInitials(),
         streak: user.streak,
         longestStreak: user.longestStreak,

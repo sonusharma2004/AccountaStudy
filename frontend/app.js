@@ -63,6 +63,20 @@ async function doLogin() {
   }
 }
 
+let regStudentType = 'fulltime';
+function setRegType(type){
+  regStudentType = type;
+  const ft = document.getElementById('regTypeFulltime');
+  const it = document.getElementById('regTypeIntern');
+  if(type==='fulltime'){
+    ft.style.border='2px solid var(--primary)'; ft.style.background='#EFF6FF';
+    it.style.border='2px solid var(--border)'; it.style.background='var(--bg)';
+  } else {
+    it.style.border='2px solid var(--primary)'; it.style.background='#EFF6FF';
+    ft.style.border='2px solid var(--border)'; ft.style.background='var(--bg)';
+  }
+}
+
 async function doRegister() {
   const name = document.getElementById("regName").value;
   const email = document.getElementById("regEmail").value;
@@ -71,7 +85,7 @@ async function doRegister() {
     const res = await fetch(`${API_URL}/auth/register`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, email, password })
+      body: JSON.stringify({ name, email, password, studentType: regStudentType })
     });
     const data = await res.json();
     if (!res.ok) { alert(data.message || "Register failed"); return; }
@@ -80,6 +94,40 @@ async function doRegister() {
   } catch (err) {
     alert("Server error");
   }
+}
+
+// ===================== PROFILE DRAWER =====================
+function openProfileDrawer(){
+  const u = S.user; if(!u) return;
+  const avatar = u.avatar || (u.name ? u.name[0].toUpperCase() : '?');
+  const color = u.color || '#3B82F6';
+  document.getElementById('pdAvatar').textContent = avatar;
+  document.getElementById('pdAvatar').style.background = color;
+  document.getElementById('pdName').textContent = u.name || '—';
+  document.getElementById('pdRole').textContent = u.role === 'admin' ? '⚡ Administrator' : '🎓 Student';
+  document.getElementById('pdEmail').textContent = u.email || '—';
+  const type = u.studentType || 'fulltime';
+  document.getElementById('pdType').innerHTML = type === 'intern' ? '💼 Intern' : '🎓 Full-time Aspirant';
+  const joined = u.createdAt ? new Date(u.createdAt).toLocaleDateString('en-IN', {day:'numeric', month:'long', year:'numeric'}) : '—';
+  document.getElementById('pdJoined').textContent = joined;
+  document.getElementById('pdStreak').textContent = u.streak || 0;
+  document.getElementById('pdHours').textContent = fmtHours(u.totalStudyHours || u.totalHours || 0);
+  document.getElementById('profileDrawer').style.display = 'block';
+}
+
+function closeProfileDrawer(){
+  document.getElementById('profileDrawer').style.display = 'none';
+}
+
+function doLogout(){
+  if(!confirm('Are you sure you want to logout?')) return;
+  localStorage.removeItem('token');
+  S.user = null;
+  closeProfileDrawer();
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('authScreen').style.display = 'flex';
+  switchView('login');
+  toast('Logged out successfully', 'success');
 }
 
 function authHeader() {
@@ -231,10 +279,19 @@ function nav(page){
 }
 
 // ===================== DASHBOARD =====================
+function getTodayStudySeconds(){
+  const today = new Date().toISOString().split('T')[0];
+  return (S.sessions||[]).filter(s=>{
+    const d = s.date || new Date(s.startTime||s.endTime||Date.now()).toISOString().split('T')[0];
+    return d === today;
+  }).reduce((a,s)=>a+(s.duration||0), 0);
+}
+
 function renderDashboard(){
   const u=S.user;
   if(!u||u.role==='admin') return;
-  document.getElementById('dToday').textContent=fmtHours((u.totalHours||0)%8);
+  const todaySecs = getTodayStudySeconds();
+  document.getElementById('dToday').textContent = todaySecs > 0 ? fmtDur(todaySecs) : '0m';
   document.getElementById('dStreak').textContent=(u.streak||0)+' days';
   document.getElementById('sbStreak').textContent='🔥 '+(u.streak||0);
   const myId=u._id||u.id;
@@ -376,6 +433,15 @@ function getTodaySub(uid){
     if (subUid == null) return true;
     return subUid===uid || subUid===String(uid);
   });
+}
+
+function isLeaveSubmission(sub){
+  if(!sub) return false;
+  if(sub.status === 'leave') return true;
+  const t = sub.timerScreenshot || '';
+  const q = sub.questScreenshot || '';
+  // Backend writes 'leave/placeholder.jpg' for leave submissions
+  return t.includes('leave/') || q.includes('leave/');
 }
 
 function renderStatusBadge(s){
@@ -1030,16 +1096,23 @@ function renderAdminSubmissions(){
             <span class="pill pill-blue">${subjectEmoji(sub.subject)} ${sub.subject}</span>
             <span class="pill pill-gray">⏱ ${sub.hours}h</span>
           </div>
-          <div class="sub-screenshots">
-            ${sub.timerScreenshot
-              ?`<div class="sub-ss" onclick="openLightbox('${sub.timerScreenshot}')"><img src="${sub.timerScreenshot}"><div class="ss-label">Timer</div></div>`
-              :`<div class="sub-ss" style="font-size:12px;color:var(--text3);flex-direction:column;gap:4px"><span style="font-size:24px">⏱</span><span>No screenshot</span></div>`
-            }
-            ${sub.questScreenshot
-              ?`<div class="sub-ss" onclick="openLightbox('${sub.questScreenshot}')"><img src="${sub.questScreenshot}"><div class="ss-label">Questions</div></div>`
-              :`<div class="sub-ss" style="font-size:12px;color:var(--text3);flex-direction:column;gap:4px"><span style="font-size:24px">📝</span><span>No screenshot</span></div>`
-            }
-          </div>
+          ${isLeaveSubmission(sub)
+            ?`<div style="background:#F0FDF4;border:1px solid #BBF7D0;border-radius:10px;padding:14px;text-align:center;margin-bottom:10px">
+                <div style="font-size:28px;margin-bottom:6px">🏖️</div>
+                <div style="font-weight:700;color:#16A34A;font-size:13px">Leave Request</div>
+                <div style="font-size:11.5px;color:#16A34A;margin-top:2px">No screenshots required</div>
+              </div>`
+            :`<div class="sub-screenshots">
+              ${sub.timerScreenshot
+                ?`<div class="sub-ss" onclick="openLightbox('${sub.timerScreenshot}')"><img src="${sub.timerScreenshot}"><div class="ss-label">Timer</div></div>`
+                :`<div class="sub-ss" style="font-size:12px;color:var(--text3);flex-direction:column;gap:4px"><span style="font-size:24px">⏱</span><span>No screenshot</span></div>`
+              }
+              ${sub.questScreenshot
+                ?`<div class="sub-ss" onclick="openLightbox('${sub.questScreenshot}')"><img src="${sub.questScreenshot}"><div class="ss-label">Questions</div></div>`
+                :`<div class="sub-ss" style="font-size:12px;color:var(--text3);flex-direction:column;gap:4px"><span style="font-size:24px">📝</span><span>No screenshot</span></div>`
+              }
+            </div>`
+          }
           ${sub.notes?`<div style="font-size:12.5px;color:var(--text2);padding:8px;background:var(--bg);border-radius:var(--r);margin-bottom:10px;line-height:1.5">"${sub.notes.slice(0,100)}${sub.notes.length>100?'…':''}"</div>`:''}
           <div style="display:flex;gap:8px">
             <button class="btn btn-primary btn-sm w100" style="justify-content:center" onclick="openVerifyModal('${subId}')">
@@ -1065,13 +1138,21 @@ function openVerifyModal(subId){
   document.getElementById('vModalSubject').textContent=sub.subject;
   document.getElementById('vModalHours').textContent=sub.hours+'h claimed';
   document.getElementById('vAdminNotes').value=sub.adminNotes||'';
-  const ssHtml=[
-    sub.timerScreenshot?`<div class="sub-ss" onclick="openLightbox('${sub.timerScreenshot}')"><img src="${sub.timerScreenshot}"><div class="ss-label">Timer Screenshot</div></div>`
-    :`<div class="sub-ss"><span style="font-size:32px">⏱</span><div class="ss-label">No Timer Screenshot</div></div>`,
-    sub.questScreenshot?`<div class="sub-ss" onclick="openLightbox('${sub.questScreenshot}')"><img src="${sub.questScreenshot}"><div class="ss-label">Questions Screenshot</div></div>`
-    :`<div class="sub-ss"><span style="font-size:32px">📝</span><div class="ss-label">No Questions Screenshot</div></div>`
-  ];
-  document.getElementById('vModalScreenshots').innerHTML=ssHtml.join('');
+  if(isLeaveSubmission(sub)){
+    document.getElementById('vModalScreenshots').innerHTML = `<div style="grid-column:span 2;background:#F0FDF4;border:1px solid #BBF7D0;border-radius:12px;padding:24px;text-align:center">
+      <div style="font-size:42px;margin-bottom:8px">🏖️</div>
+      <div style="font-weight:700;color:#16A34A;font-size:15px">Leave Request</div>
+      <div style="font-size:13px;color:#16A34A;margin-top:4px">Student requested leave — no screenshots required</div>
+    </div>`;
+  } else {
+    const ssHtml=[
+      sub.timerScreenshot?`<div class="sub-ss" onclick="openLightbox('${sub.timerScreenshot}')"><img src="${sub.timerScreenshot}"><div class="ss-label">Timer Screenshot</div></div>`
+      :`<div class="sub-ss"><span style="font-size:32px">⏱</span><div class="ss-label">No Timer Screenshot</div></div>`,
+      sub.questScreenshot?`<div class="sub-ss" onclick="openLightbox('${sub.questScreenshot}')"><img src="${sub.questScreenshot}"><div class="ss-label">Questions Screenshot</div></div>`
+      :`<div class="sub-ss"><span style="font-size:32px">📝</span><div class="ss-label">No Questions Screenshot</div></div>`
+    ];
+    document.getElementById('vModalScreenshots').innerHTML=ssHtml.join('');
+  }
   document.querySelectorAll('.status-opt').forEach(el=>el.classList.remove('selected'));
   const statusMap={completed:'.so-completed',halfday:'.so-halfday',leave:'.so-leave',fine:'.so-fine'};
   const sel=document.querySelector(statusMap[S.verifyStatus]||'.so-completed');

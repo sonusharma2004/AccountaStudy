@@ -30,6 +30,11 @@ const userSchema = new mongoose.Schema(
       enum: ['student', 'admin'],
       default: 'student',
     },
+    studentType: {
+      type: String,
+      enum: ['intern', 'fulltime'],
+      default: 'fulltime',
+    },
 
     // ── Study Stats ──
     totalStudyHours: {
