@@ -725,14 +725,34 @@ function pickSubject(el,subj){
 async function tStart(){
   if(S.timerState==='running') return;
   try {
-    const res = await fetch(`${API_URL}/session/start`, {
+    let res = await fetch(`${API_URL}/session/start`, {
       method: "POST",
       headers: { "Content-Type": "application/json", ...authHeader() },
       body: JSON.stringify({ subject: S.currentSubject }),
     });
-    const data = await res.json().catch(() => ({}));
+    let data = await res.json().catch(() => ({}));
+
+    // If an orphaned/stale session is blocking us, auto-stop it and retry once
+    if (res.status === 409 && data.session?.id) {
+      toast('Cleaning up previous session…', 'info');
+      try {
+        await fetch(`${API_URL}/session/stop`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', ...authHeader() },
+          body: JSON.stringify({ sessionId: data.session.id }),
+        });
+      } catch(_) { /* ignore */ }
+      // Retry start
+      res = await fetch(`${API_URL}/session/start`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...authHeader() },
+        body: JSON.stringify({ subject: S.currentSubject }),
+      });
+      data = await res.json().catch(() => ({}));
+    }
+
     if (!res.ok) {
-      toast(data.message || "Could not start session (try again or stop any active session)", "error");
+      toast(data.message || "Could not start session — please try again.", "error");
       return;
     }
     S.activeSessionId = data.session?.id || null;
