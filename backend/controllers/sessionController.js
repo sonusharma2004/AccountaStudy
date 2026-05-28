@@ -18,14 +18,16 @@ const startSession = async (req, res, next) => {
       return res.status(400).json({ success: false, message: 'Subject is required.' });
     }
 
-    // Check: no active session already running
-    const activeSession = await Session.findOne({ userId, isActive: true });
-    if (activeSession) {
-      return res.status(409).json({
-        success: false,
-        message: 'You already have an active session. Stop it before starting a new one.',
-        session: { id: activeSession._id, subject: activeSession.subject, startTime: activeSession.startTime },
-      });
+    // Auto-cleanup: silently close any orphaned active session(s) before starting a new one.
+    // This prevents stale sessions from page reloads / tab closes blocking the user.
+    const stale = await Session.find({ userId, isActive: true });
+    for (const s of stale) {
+      const endTime = new Date();
+      const durationSeconds = Math.max(0, Math.floor((endTime - s.startTime) / 1000));
+      s.endTime = endTime;
+      s.duration = durationSeconds;
+      s.isActive = false;
+      try { await s.save(); } catch(_) { /* ignore individual failures */ }
     }
 
     const session = await Session.create({

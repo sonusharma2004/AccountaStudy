@@ -732,9 +732,8 @@ async function tStart(){
     });
     let data = await res.json().catch(() => ({}));
 
-    // If an orphaned/stale session is blocking us, auto-stop it and retry once
+    // If an orphaned/stale session is blocking us, auto-stop it silently and retry once
     if (res.status === 409 && data.session?.id) {
-      toast('Cleaning up previous session…', 'info');
       try {
         await fetch(`${API_URL}/session/stop`, {
           method: 'POST',
