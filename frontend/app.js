@@ -394,6 +394,30 @@ function renderSubHistory(){
 }
 
 // ===================== SUBMIT PROOF =====================
+// Track current submission type
+S.submissionType = 'fullday';
+
+function setSubmissionType(type){
+  S.submissionType = type;
+  const types = ['fullday','halfday','leave'];
+  const colors = {fullday:'var(--primary)',halfday:'#D97706',leave:'#6B7280'};
+  const bgs = {fullday:'#EFF6FF',halfday:'#FFFBEB',leave:'#F9FAFB'};
+  const ids = {fullday:'typeFullDay',halfday:'typeHalfDay',leave:'typeLeave'};
+  types.forEach(t=>{
+    const el=document.getElementById(ids[t]);
+    if(t===type){
+      el.style.border=`2px solid ${colors[t]}`;
+      el.style.background=bgs[t];
+    } else {
+      el.style.border='2px solid var(--border)';
+      el.style.background='var(--bg)';
+    }
+  });
+  // Show/hide screenshot section and leave reason
+  document.getElementById('screenshotSection').style.display=type==='leave'?'none':'block';
+  document.getElementById('leaveSection').style.display=type==='leave'?'block':'none';
+}
+
 function triggerUpload(id){ /* handled by input */ }
 
 function handleFileUpload(input,previewId,zoneId){
@@ -412,6 +436,37 @@ function handleFileUpload(input,previewId,zoneId){
 }
 
 async function submitProof() {
+  const type = S.submissionType || 'fullday';
+
+  if(type === 'leave'){
+    // Leave — no screenshots needed
+    try {
+      const formData = new FormData();
+      formData.append("subject", "Leave");
+      formData.append("hoursStudied", "0.5");
+      formData.append("notes", document.getElementById("leaveReason").value || "Student requested leave");
+      formData.append("submissionType", "leave");
+      // Create blank placeholder blobs for required fields
+      const blankBlob = new Blob([''], {type:'image/jpeg'});
+      formData.append("timerScreenshot", blankBlob, "leave.jpg");
+      formData.append("questionScreenshot", blankBlob, "leave.jpg");
+      const res = await fetch(`${API_URL}/submission/upload`, {
+        method: "POST",
+        headers: { ...authHeader() },
+        body: formData,
+      });
+      const data = await res.json();
+      if (!res.ok) { alert(data.message || "Submission failed"); return; }
+      toast("Leave submitted ✅ Awaiting admin approval", "success");
+      await fetchSubmissions();
+      renderTodaySub();
+      renderDashboard();
+      updatePendingBadge();
+    } catch(err){ console.error(err); alert("Submission error"); }
+    return;
+  }
+
+  // Full Day or Half Day — screenshots required
   const timerB64 = S.timerFiles.timer;
   const questB64 = S.timerFiles.quest;
   if (!timerB64 || !questB64) { alert("Please upload both screenshots."); return; }
@@ -424,6 +479,7 @@ async function submitProof() {
     formData.append("subject", document.getElementById("subSubject").value);
     formData.append("hoursStudied", String(hours));
     formData.append("notes", document.getElementById("subNotes").value || "");
+    formData.append("submissionType", type);
     const res = await fetch(`${API_URL}/submission/upload`, {
       method: "POST",
       headers: { ...authHeader() },
