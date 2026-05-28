@@ -444,6 +444,17 @@ function isLeaveSubmission(sub){
   return t.includes('leave/') || q.includes('leave/');
 }
 
+// Generate a screenshot tile with graceful onerror fallback when the file is missing.
+// Used in admin verify cards and the verify modal.
+function renderScreenshotTile(url, label, icon, size='small'){
+  const safeUrl = (url || '').replace(/'/g, "\\'");
+  const fallbackInline = `this.style.display='none';this.parentElement.innerHTML='<div style=\\'display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:6px;color:#94a3b8;background:#F8FAFC;border-radius:8px\\'><span style=\\'font-size:${size==='large'?32:24}px\\'>${icon}</span><span style=\\'font-size:${size==='large'?13:11.5}px;font-weight:500\\'>Screenshot unavailable</span></div>';`;
+  if (!url) {
+    return `<div class="sub-ss" style="font-size:12px;color:var(--text3);flex-direction:column;gap:4px"><span style="font-size:${size==='large'?32:24}px">${icon}</span><span>No screenshot</span></div>`;
+  }
+  return `<div class="sub-ss" onclick="openLightbox('${safeUrl}')"><img src="${url}" onerror="${fallbackInline}"><div class="ss-label">${label}</div></div>`;
+}
+
 function renderStatusBadge(s){
   const map={completed:'s-completed',halfday:'s-halfday',leave:'s-leave',fine:'s-fine',pending:'s-pending'};
   const labels={completed:'✅ Completed',halfday:'🟡 Half Day',leave:'❌ Leave',fine:'🔴 Fine',pending:'⏳ Pending'};
@@ -1122,14 +1133,8 @@ function renderAdminSubmissions(){
                 <div style="font-size:11.5px;color:#16A34A;margin-top:2px">No screenshots required</div>
               </div>`
             :`<div class="sub-screenshots">
-              ${sub.timerScreenshot
-                ?`<div class="sub-ss" onclick="openLightbox('${sub.timerScreenshot}')"><img src="${sub.timerScreenshot}"><div class="ss-label">Timer</div></div>`
-                :`<div class="sub-ss" style="font-size:12px;color:var(--text3);flex-direction:column;gap:4px"><span style="font-size:24px">⏱</span><span>No screenshot</span></div>`
-              }
-              ${sub.questScreenshot
-                ?`<div class="sub-ss" onclick="openLightbox('${sub.questScreenshot}')"><img src="${sub.questScreenshot}"><div class="ss-label">Questions</div></div>`
-                :`<div class="sub-ss" style="font-size:12px;color:var(--text3);flex-direction:column;gap:4px"><span style="font-size:24px">📝</span><span>No screenshot</span></div>`
-              }
+              ${renderScreenshotTile(sub.timerScreenshot, 'Timer', '⏱', 'small')}
+              ${renderScreenshotTile(sub.questScreenshot, 'Questions', '📝', 'small')}
             </div>`
           }
           ${sub.notes?`<div style="font-size:12.5px;color:var(--text2);padding:8px;background:var(--bg);border-radius:var(--r);margin-bottom:10px;line-height:1.5">"${sub.notes.slice(0,100)}${sub.notes.length>100?'…':''}"</div>`:''}
@@ -1164,13 +1169,11 @@ function openVerifyModal(subId){
       <div style="font-size:13px;color:#16A34A;margin-top:4px">Student requested leave — no screenshots required</div>
     </div>`;
   } else {
-    const ssHtml=[
-      sub.timerScreenshot?`<div class="sub-ss" onclick="openLightbox('${sub.timerScreenshot}')"><img src="${sub.timerScreenshot}"><div class="ss-label">Timer Screenshot</div></div>`
-      :`<div class="sub-ss"><span style="font-size:32px">⏱</span><div class="ss-label">No Timer Screenshot</div></div>`,
-      sub.questScreenshot?`<div class="sub-ss" onclick="openLightbox('${sub.questScreenshot}')"><img src="${sub.questScreenshot}"><div class="ss-label">Questions Screenshot</div></div>`
-      :`<div class="sub-ss"><span style="font-size:32px">📝</span><div class="ss-label">No Questions Screenshot</div></div>`
+    const ssHtml = [
+      renderScreenshotTile(sub.timerScreenshot, 'Timer Screenshot', '⏱', 'large'),
+      renderScreenshotTile(sub.questScreenshot, 'Questions Screenshot', '📝', 'large'),
     ];
-    document.getElementById('vModalScreenshots').innerHTML=ssHtml.join('');
+    document.getElementById('vModalScreenshots').innerHTML = ssHtml.join('');
   }
   document.querySelectorAll('.status-opt').forEach(el=>el.classList.remove('selected'));
   const statusMap={completed:'.so-completed',halfday:'.so-halfday',leave:'.so-leave',fine:'.so-fine'};
