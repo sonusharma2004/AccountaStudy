@@ -180,7 +180,20 @@ Open: [http://localhost:5500](http://localhost:5500)
 
 ## Screenshots
 
-*(Add screenshots of the running application here)*
+### Dashboard
+![Dashboard](docs/screenshots/dashboard.png)
+
+### Study Timer (Library Focus Mode)
+![Study Timer](docs/screenshots/study-timer.png)
+
+### Library Background (Active Session)
+![Library Mode](docs/screenshots/library-mode.png)
+
+### Submit Daily Proof
+![Submit Proof](docs/screenshots/submit-proof.png)
+
+### Analytics
+![Analytics](docs/screenshots/analytics.png)
 
 ---
 
