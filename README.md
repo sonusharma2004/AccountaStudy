@@ -42,22 +42,33 @@ A full-stack web application that helps students build and sustain consistent st
 
 ### Student Features
 - Register and login with JWT-based authentication (bcrypt password hashing, cost factor 10)
-- Submit daily study proof with **timer screenshot** and **question screenshot**
-- Select subject studied (Mathematics, Physics, Chemistry, Biology, Programming, etc.)
+- Choose student profile type at registration: **Intern** 💼 or **Full-time Aspirant** 🎓
+- Submit daily study proof with **3 flexible submission types**:
+  - ✅ **Full Day** — with timer + question screenshots
+  - 🟡 **Half Day** — partial study day with screenshots (3 half-days available per term)
+  - 🏖️ **Leave** — excused absence, no screenshots needed (3 leaves available per term)
+- **Auto-deducted allowance** — when a student uses a leave or half-day, their remaining count is reduced and displayed live on dashboard + submission page
+- Select subject studied (Mathematics, Physics, Chemistry, Biology, Programming, History, Literature, Economics)
 - View personal submission history with status tracking
 - Track **study streaks** and total hours studied
-- **Study Timer** — start/stop precisely-timed study sessions per subject
+- **Study Timer** with **Library Focus Mode** — starts a calming dimmed background when timer is running
+- **Today's Study counter** — shows actual study time accumulated today (real-time from active sessions)
+- **Clickable profile drawer** — view name, email, student type, join date, streak, total hours; one-click logout
+- **Clickable dashboard stat cards** — each card (Today's Study, Streak, Rank, Status) opens a detailed modal
+- **Clickable analytics cards** — Consistency, Avg Daily Hours, Goal Hit Rate, Total Fines each open a detailed breakdown
 - View personal analytics: activity grid, 7-day bar chart, subject breakdown, performance trends
 
 ### Admin Features
-- View all pending student submissions
+- View all pending student submissions in a clean grid
 - Verify submissions and assign daily status:
-  - ✅ **Completed** — full study day
-  - 🟡 **Half Day** — partial submission
-  - 🔴 **Leave** — excused absence
-  - 🔴 **Fine** — no submission, penalty applied
+  - ✅ **Completed** — full study day (+100 points)
+  - 🟡 **Half Day** — partial submission (+40 points)
+  - 🏖️ **Leave** — excused absence (no penalty)
+  - 🔴 **Fine** — no submission, penalty applied (−20 points)
+- **Smart leave-aware UI** — leave submissions display a clean "🏖️ Leave Request" banner instead of empty screenshot placeholders
 - Add admin notes to submissions
 - Access system-wide statistics dashboard
+- Student Manager: view all enrolled students
 
 ### Leaderboard
 - Daily, weekly, and overall rankings
@@ -100,7 +111,7 @@ AccountaStudy/
 ### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/AccountaStudy.git
+git clone https://github.com/sonusharma2004/AccountaStudy.git
 cd AccountaStudy
 ```
 
@@ -151,12 +162,17 @@ Open: [http://localhost:5500](http://localhost:5500)
 
 ### 5. Test Credentials (after seeding)
 
-| Role | Email | Password |
-|------|-------|----------|
-| Admin | admin@school.edu | admin123 |
-| Student | student@school.edu | pass123 |
-| Student | priya@school.edu | pass123 |
-| Student | arjun@school.edu | pass123 |
+| Role | Email | Password | Student Type |
+|------|-------|----------|---------------|
+| Admin | admin@school.edu | admin123 | — |
+| Student | student@school.edu | pass123 | Full-time Aspirant |
+| Student | priya@school.edu | pass123 | Full-time Aspirant |
+| Student | arjun@school.edu | pass123 | Intern |
+| Student | sneha@school.edu | pass123 | Full-time Aspirant |
+| Student | rahul@school.edu | pass123 | Intern |
+| Student | kavya@school.edu | pass123 | Full-time Aspirant |
+
+> Each student starts the term with **3 leaves** and **3 half-days** that are automatically deducted when used.
 
 ---
 
