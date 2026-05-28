@@ -149,6 +149,21 @@ select.form-input{appearance:none;background-image:url("data:image/svg+xml,%3Csv
 .timer-digits.paused{color:var(--warning)}
 .timer-subject{font-size:12px;color:var(--text3);text-transform:uppercase;letter-spacing:0.8px;font-weight:600;margin-top:4px}
 
+/* ── Library Focus Mode ── */
+#library-bg{display:none;position:fixed;inset:0;background:url('https://images.unsplash.com/photo-1521587760476-6c12a4b040da?w=1600&q=80') center/cover no-repeat;z-index:0;transition:opacity 0.8s}
+#library-bg::after{content:'';position:absolute;inset:0;background:rgba(0,0,0,0.52)}
+body.focus-mode #library-bg{display:block}
+body.focus-mode #sidebar{opacity:0.12;transition:opacity 0.3s}
+body.focus-mode #sidebar:hover{opacity:1}
+body.focus-mode #main{background:transparent;position:relative;z-index:1}
+body.focus-mode #page-timer .card{background:rgba(255,255,255,0.09);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);border:1px solid rgba(255,255,255,0.18);position:relative;z-index:1}
+body.focus-mode #page-timer .form-label,body.focus-mode #page-timer #timerSubLabel,body.focus-mode #page-timer #tNote{color:rgba(255,255,255,0.85)}
+body.focus-mode #page-timer .section-title{color:#fff}
+body.focus-mode #page-timer .timer-digits{color:#fff;text-shadow:0 0 40px rgba(99,179,237,0.9)}
+body.focus-mode #page-timer .timer-digits.running{color:#93C5FD;text-shadow:0 0 50px rgba(147,197,253,0.8)}
+#focus-quote{display:none;position:fixed;top:24px;right:36px;color:rgba(255,255,255,0.88);font-size:14px;font-style:italic;z-index:10;text-shadow:0 1px 6px rgba(0,0,0,0.6);max-width:280px;text-align:right}
+body.focus-mode #focus-quote{display:block}
+
 /* ===================== LEADERBOARD ===================== */
 .lb-row{display:flex;align-items:center;gap:14px;padding:12px 16px;border-radius:var(--r2);margin-bottom:4px;transition:var(--trans);border:1px solid transparent}
 .lb-row:hover{background:var(--bg);border-color:var(--border)}

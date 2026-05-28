@@ -204,6 +204,7 @@ const pageMeta={
 
 function nav(page){
   if((page==='admin-verify'||page==='admin-users')&&S.user?.role!=='admin'){toast('Admin only','error');return;}
+  if(page!=='timer' && S.timerState==='idle') document.body.classList.remove('focus-mode');
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
   document.getElementById('page-'+page).classList.add('active');
@@ -478,6 +479,7 @@ async function tStart(){
   document.getElementById('tStopBtn').style.display='inline-flex';
   document.getElementById('timerDisp').className='timer-digits running';
   document.getElementById('tNote').textContent=S.currentSubject+' session in progress…';
+  document.body.classList.add('focus-mode');
   toast('Session started! Stay focused.','info');
 }
 
@@ -541,6 +543,7 @@ async function tStop(){
   document.getElementById('tResumeBtn').style.display='none';
   document.getElementById('tStopBtn').style.display='none';
   document.getElementById('timerRing').style.strokeDashoffset='728.97';
+  document.body.classList.remove('focus-mode');
   renderTimerSessions();
   toast(`Session complete: ${fmtDur(secs)} of ${S.currentSubject}`,'success');
 }

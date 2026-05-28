@@ -1,5 +1,5 @@
 // scripts/seed.js — Seed database with realistic test data for 3 days of testing
-require('dotenv').config({ path: '../.env' });
+require('dotenv').config({ path: require('path').join(__dirname, '../.env') });
 const mongoose = require('mongoose');
 
 // Connect
