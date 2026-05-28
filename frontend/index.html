@@ -163,29 +163,37 @@
     <div class="page active" id="page-dashboard">
       <div id="dashBanner" class="mb-20"></div>
       <div class="grid g4 mb-16">
-        <div class="stat-card">
+        <div class="stat-card" style="cursor:pointer" onclick="openStatModal('today')">
           <div class="stat-icon-wrap" style="background:#EFF6FF"><span style="font-size:20px">⏱</span></div>
           <div class="stat-label">Today's Study</div>
           <div class="stat-val" id="dToday">0h 0m</div>
           <div class="stat-sub" style="color:var(--primary)">Session active or recent</div>
         </div>
-        <div class="stat-card">
+        <div class="stat-card" style="cursor:pointer" onclick="openStatModal('streak')">
           <div class="stat-icon-wrap" style="background:#F0FDF4"><span style="font-size:20px">🔥</span></div>
           <div class="stat-label">Current Streak</div>
           <div class="stat-val" id="dStreak">0 days</div>
           <div class="stat-sub" style="color:var(--success-dark)">Keep it going!</div>
         </div>
-        <div class="stat-card">
+        <div class="stat-card" style="cursor:pointer" onclick="openStatModal('rank')">
           <div class="stat-icon-wrap" style="background:#FFFBEB"><span style="font-size:20px">🏆</span></div>
           <div class="stat-label">Your Rank</div>
           <div class="stat-val" id="dRank">#—</div>
           <div class="stat-sub" style="color:var(--warning-dark)">Leaderboard position</div>
         </div>
-        <div class="stat-card">
+        <div class="stat-card" style="cursor:pointer" onclick="openStatModal('status')">
           <div class="stat-icon-wrap" style="background:#F5F3FF"><span style="font-size:20px">📋</span></div>
           <div class="stat-label">Today's Status</div>
           <div id="dStatus"><span class="status-badge s-pending">⏳ Pending</span></div>
           <div class="stat-sub text-muted mt-8">Awaiting verification</div>
+        </div>
+      </div>
+
+      <!-- Stat Detail Modal -->
+      <div id="statModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:1000;align-items:center;justify-content:center" onclick="if(event.target===this)closeStatModal()">
+        <div style="background:var(--surface);border-radius:16px;padding:32px;width:90%;max-width:480px;box-shadow:0 20px 60px rgba(0,0,0,0.2);position:relative;max-height:80vh;overflow-y:auto">
+          <button onclick="closeStatModal()" style="position:absolute;top:16px;right:16px;background:none;border:none;font-size:20px;cursor:pointer;color:var(--text3)">✕</button>
+          <div id="statModalContent"></div>
         </div>
       </div>
 

@@ -248,6 +248,100 @@ function renderDashboard(){
   updateMyStats();
 }
 
+function openStatModal(type){
+  const u=S.user; if(!u) return;
+  const myId=u._id||u.id;
+  const todaySub=getTodaySub(myId);
+  const students=(S.leaderboardData||[]);
+  const sorted=[...students].sort((a,b)=>(b.totalHours||b.hrs||0)-(a.totalHours||a.hrs||0));
+  const rank=sorted.findIndex(x=>String(x._id||x.id||x.userId)===String(myId))+1;
+  let html='';
+  if(type==='today'){
+    const todaySessions=S.sessions.filter(s=>{
+      const d=new Date(s.startTime||s.endTime||Date.now()).toISOString().split('T')[0];
+      return d===new Date().toISOString().split('T')[0];
+    });
+    const totalSecs=todaySessions.reduce((a,s)=>a+(s.duration||0),0);
+    html=`<div style="text-align:center;margin-bottom:24px">
+      <div style="font-size:48px;margin-bottom:8px">⏱</div>
+      <div style="font-size:32px;font-weight:700;color:var(--primary)">${fmtDur(totalSecs)}</div>
+      <div style="color:var(--text3);font-size:13px;margin-top:4px">Total study time today</div>
+    </div>
+    <div style="font-weight:600;margin-bottom:12px;color:var(--text)">Today's Sessions (${todaySessions.length})</div>
+    ${todaySessions.length?todaySessions.map(s=>`
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:var(--bg);border-radius:10px;margin-bottom:8px">
+        <div style="font-weight:500">${s.subject||'Study'}</div>
+        <div style="color:var(--primary);font-weight:600">${fmtDur(s.duration||0)}</div>
+      </div>`).join(''):'<div style="color:var(--text3);text-align:center;padding:20px">No sessions recorded today yet.</div>'}`;
+  } else if(type==='streak'){
+    const history=S.submissions.slice(0,14).map(s=>({date:s.date,status:s.status}));
+    html=`<div style="text-align:center;margin-bottom:24px">
+      <div style="font-size:48px;margin-bottom:8px">🔥</div>
+      <div style="font-size:36px;font-weight:700;color:var(--success)">${u.streak||0}</div>
+      <div style="color:var(--text3);font-size:14px">Day Streak</div>
+      <div style="margin-top:8px;font-size:13px;color:var(--text2)">Longest streak: <strong>${u.longestStreak||u.streak||0} days</strong></div>
+    </div>
+    <div style="font-weight:600;margin-bottom:12px">Recent Submission History</div>
+    ${history.length?history.map(s=>`
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:var(--bg);border-radius:10px;margin-bottom:8px">
+        <div style="color:var(--text2);font-size:13px">${s.date}</div>
+        ${renderStatusBadge(s.status)}
+      </div>`).join(''):'<div style="color:var(--text3);text-align:center;padding:20px">No submission history yet.</div>'}`;
+  } else if(type==='rank'){
+    const top5=sorted.slice(0,5);
+    html=`<div style="text-align:center;margin-bottom:24px">
+      <div style="font-size:48px;margin-bottom:8px">🏆</div>
+      <div style="font-size:36px;font-weight:700;color:var(--warning)">${rank>0?'#'+rank:'#—'}</div>
+      <div style="color:var(--text3);font-size:14px">Your Leaderboard Position</div>
+      <div style="font-size:13px;color:var(--text2);margin-top:6px">Total study: <strong>${fmtHours(u.totalStudyHours||u.totalHours||0)}</strong></div>
+    </div>
+    <div style="font-weight:600;margin-bottom:12px">Top 5 Students</div>
+    ${top5.map((s,i)=>{
+      const isMe=String(s._id||s.id||s.userId)===String(myId);
+      return `<div style="display:flex;align-items:center;gap:12px;padding:10px 14px;background:${isMe?'var(--primary-light, #EFF6FF)':'var(--bg)'};border-radius:10px;margin-bottom:8px;${isMe?'border:1.5px solid var(--primary)':''}">
+        <div style="font-size:20px">${i===0?'🥇':i===1?'🥈':i===2?'🥉':'#'+(i+1)}</div>
+        <div style="flex:1;font-weight:${isMe?'700':'500'}">${s.name||s.username||'Student'}${isMe?' (You)':''}</div>
+        <div style="color:var(--primary);font-weight:600">${fmtHours(s.totalHours||s.hrs||0)}</div>
+      </div>`;
+    }).join('')}`;
+  } else if(type==='status'){
+    html=`<div style="text-align:center;margin-bottom:24px">
+      <div style="font-size:48px;margin-bottom:8px">📋</div>
+      <div style="margin-bottom:8px">${todaySub?renderStatusBadge(todaySub.status):'<span class="status-badge s-pending">⏳ Pending</span>'}</div>
+      <div style="color:var(--text3);font-size:13px">${todaySub?'Submitted at '+fmtTime(todaySub):'No submission yet today'}</div>
+    </div>
+    <div style="font-weight:600;margin-bottom:12px">Your Stats</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div style="background:var(--bg);border-radius:10px;padding:14px;text-align:center">
+        <div style="font-size:22px;font-weight:700;color:var(--success)">${u.totalCompleted||0}</div>
+        <div style="font-size:12px;color:var(--text3)">✅ Completed</div>
+      </div>
+      <div style="background:var(--bg);border-radius:10px;padding:14px;text-align:center">
+        <div style="font-size:22px;font-weight:700;color:var(--warning)">${u.totalHalfDay||0}</div>
+        <div style="font-size:12px;color:var(--text3)">🟡 Half Days</div>
+      </div>
+      <div style="background:var(--bg);border-radius:10px;padding:14px;text-align:center">
+        <div style="font-size:22px;font-weight:700;color:var(--text2)">${u.totalLeave||0}</div>
+        <div style="font-size:12px;color:var(--text3)">❌ Leaves</div>
+      </div>
+      <div style="background:var(--bg);border-radius:10px;padding:14px;text-align:center">
+        <div style="font-size:22px;font-weight:700;color:var(--error)">${u.totalFines||0}</div>
+        <div style="font-size:12px;color:var(--text3)">🔴 Fines</div>
+      </div>
+    </div>
+    ${todaySub&&todaySub.adminNotes?`<div style="margin-top:16px;padding:12px;background:#FFF7ED;border-radius:10px;font-size:13px;color:var(--text2)"><strong>Admin Note:</strong> ${todaySub.adminNotes}</div>`:''}
+    ${!todaySub?`<div style="margin-top:16px"><button class="btn btn-primary" style="width:100%" onclick="closeStatModal();nav('submit')">Submit Today's Proof →</button></div>`:''}`;
+  }
+  document.getElementById('statModalContent').innerHTML=html;
+  const modal=document.getElementById('statModal');
+  modal.style.display='flex';
+  setTimeout(()=>modal.querySelector('div').style.transform='scale(1)',10);
+}
+
+function closeStatModal(){
+  document.getElementById('statModal').style.display='none';
+}
+
 function getTodaySub(uid){
   const today=new Date().toISOString().split('T')[0];
   return S.submissions.find(s=>{
