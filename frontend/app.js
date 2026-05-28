@@ -378,6 +378,7 @@ function renderSubHistory(){
   const uid=S.user?._id||S.user?.id;
   const subs=S.submissions.filter(s=>{
     const subUid=s.userId?._id||s.userId;
+    if(subUid==null) return true;
     return subUid===uid||subUid===String(uid);
   }).sort((a,b)=>b.date.localeCompare(a.date)).slice(0,6);
   if(!subs.length){
