@@ -28,15 +28,28 @@ const uploadSubmission = async (req, res, next) => {
       });
     }
 
-    // Validate files were uploaded
-    if (!req.files || !req.files.timerScreenshot || !req.files.questionScreenshot) {
-      return res.status(400).json({
-        success: false,
-        message: 'Both timer screenshot and question screenshot are required.',
-      });
+    const { subject, hoursStudied, notes, submissionType } = req.body;
+    const isLeave = submissionType === 'leave';
+    const isHalfDay = submissionType === 'halfday';
+
+    // For leave submissions, skip screenshot validation
+    if (!isLeave) {
+      if (!req.files || !req.files.timerScreenshot || !req.files.questionScreenshot) {
+        return res.status(400).json({
+          success: false,
+          message: 'Both timer screenshot and question screenshot are required.',
+        });
+      }
     }
 
-    const { subject, hoursStudied, notes } = req.body;
+    // Check leave/halfday allowance
+    const student = await User.findById(userId);
+    if (isLeave && student.leavesRemaining <= 0) {
+      return res.status(400).json({ success: false, message: 'No leaves remaining. You have used all 3 leaves.' });
+    }
+    if (isHalfDay && student.halfDaysRemaining <= 0) {
+      return res.status(400).json({ success: false, message: 'No half days remaining. You have used all 3 half days.' });
+    }
 
     if (!subject || !hoursStudied) {
       return res.status(400).json({
@@ -45,12 +58,12 @@ const uploadSubmission = async (req, res, next) => {
       });
     }
 
-    const timerFile = req.files.timerScreenshot[0];
-    const questionFile = req.files.questionScreenshot[0];
+    const timerFile = isLeave ? null : req.files?.timerScreenshot?.[0];
+    const questionFile = isLeave ? null : req.files?.questionScreenshot?.[0];
 
     // Relative paths for storage (served statically)
-    const timerPath = `timer/${timerFile.filename}`;
-    const questionPath = `questions/${questionFile.filename}`;
+    const timerPath = isLeave ? 'leave/placeholder.jpg' : `timer/${timerFile.filename}`;
+    const questionPath = isLeave ? 'leave/placeholder.jpg' : `questions/${questionFile.filename}`;
 
     let submission;
 
@@ -78,11 +91,14 @@ const uploadSubmission = async (req, res, next) => {
       });
     }
 
-    // Update user's totalStudyHours
-    await User.findByIdAndUpdate(userId, {
+    // Update user's totalStudyHours and deduct leave/halfday if applicable
+    const userUpdate = {
       $inc: { totalStudyHours: parseFloat(hoursStudied) },
       lastStudyDate: new Date(),
-    });
+    };
+    if (isLeave && !existing) userUpdate.$inc.leavesRemaining = -1;
+    if (isHalfDay && !existing) userUpdate.$inc.halfDaysRemaining = -1;
+    await User.findByIdAndUpdate(userId, userUpdate);
 
     res.status(201).json({
       success: true,

@@ -60,6 +60,8 @@ const seed = async () => {
         totalLeave: 1,
         totalFines: 2,
         points: 1900,
+        leavesRemaining: 2,
+        halfDaysRemaining: 0,
       },
       {
         name: 'Arjun Mehta',
@@ -75,6 +77,8 @@ const seed = async () => {
         totalLeave: 0,
         totalFines: 1,
         points: 2460,
+        leavesRemaining: 3,
+        halfDaysRemaining: 1,
       },
       {
         name: 'Sneha Iyer',
@@ -90,6 +94,8 @@ const seed = async () => {
         totalLeave: 2,
         totalFines: 3,
         points: 2140,
+        leavesRemaining: 1,
+        halfDaysRemaining: 0,
       },
       {
         name: 'Rahul Gupta',
@@ -105,6 +111,8 @@ const seed = async () => {
         totalLeave: 1,
         totalFines: 5,
         points: 1750,
+        leavesRemaining: 2,
+        halfDaysRemaining: 0,
       },
       {
         name: 'Kavya Nair',
@@ -120,6 +128,8 @@ const seed = async () => {
         totalLeave: 3,
         totalFines: 4,
         points: 1380,
+        leavesRemaining: 0,
+        halfDaysRemaining: 0,
       },
       // Test account — for easy login during development
       {
@@ -136,6 +146,8 @@ const seed = async () => {
         totalLeave: 0,
         totalFines: 1,
         points: 540,
+        leavesRemaining: 3,
+        halfDaysRemaining: 2,
       },
     ];
 

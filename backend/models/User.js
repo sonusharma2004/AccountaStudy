@@ -73,6 +73,16 @@ const userSchema = new mongoose.Schema(
       default: 0,
     },
 
+    // ── Leave & Half Day Allowance ──
+    leavesRemaining: {
+      type: Number,
+      default: 3,
+    },
+    halfDaysRemaining: {
+      type: Number,
+      default: 3,
+    },
+
     // ── Profile ──
     avatar: {
       type: String,

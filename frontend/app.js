@@ -87,6 +87,16 @@ function authHeader() {
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
+async function refreshUserProfile(){
+  try {
+    const res=await fetch(`${API_URL}/auth/me`,{headers:authHeader()});
+    if(!res.ok) return;
+    const data=await res.json();
+    const u=data.user||data.data||data;
+    if(u&&u._id){ S.user={...S.user,...u}; renderDashboard(); renderSubmitAllowance(); }
+  } catch(e){ /* silent */ }
+}
+
 async function loginUser(user){
   S.user=user;
   document.getElementById('authScreen').style.display='none';
@@ -217,7 +227,7 @@ function nav(page){
   if(page==='leaderboard'){fetchLeaderboard().then(()=>setTimeout(animateLbBars,80));}
   if(page==='analytics'){buildActGrid();}
   if(page==='admin-verify'){fetchSubmissions().then(renderAdminSubmissions);}
-  if(page==='submit'){renderTodaySub();updateSubWindowBanner();}
+  if(page==='submit'){renderTodaySub();updateSubWindowBanner();renderSubmitAllowance();}
 }
 
 // ===================== DASHBOARD =====================
@@ -235,6 +245,9 @@ function renderDashboard(){
   const todaySub=getTodaySub(myId);
   const statusEl=document.getElementById('dStatus');
   statusEl.innerHTML=todaySub?renderStatusBadge(todaySub.status):'<span class="status-badge s-pending">⏳ Pending</span>';
+  const lr=u.leavesRemaining??3; const hr=u.halfDaysRemaining??3;
+  const dlEl=document.getElementById('dashLeavesLeft'); if(dlEl) dlEl.textContent=lr;
+  const dhEl=document.getElementById('dashHalfLeft'); if(dhEl) dhEl.textContent=hr;
   const banner=document.getElementById('dashBanner');
   if(!todaySub||todaySub.status==='pending'){
     banner.innerHTML='<div class="deadline-banner active"><span style="font-size:18px">📸</span><div style="flex:1"><div style="font-weight:700;font-size:13.5px;color:var(--warning-dark)">Don\'t forget your daily proof submission!</div><div style="font-size:12.5px;color:var(--text2)">Submit between 6 PM – 7:30 PM with screenshots of your timer and questions solved.</div></div><button class="btn btn-sm" style="background:var(--warning);color:#fff;border:none;flex-shrink:0" onclick="nav(\'submit\')">Submit Now →</button></div>';
@@ -305,10 +318,22 @@ function openStatModal(type){
       </div>`;
     }).join('')}`;
   } else if(type==='status'){
+    const lr=u.leavesRemaining??3; const hdr=u.halfDaysRemaining??3;
     html=`<div style="text-align:center;margin-bottom:24px">
       <div style="font-size:48px;margin-bottom:8px">📋</div>
       <div style="margin-bottom:8px">${todaySub?renderStatusBadge(todaySub.status):'<span class="status-badge s-pending">⏳ Pending</span>'}</div>
       <div style="color:var(--text3);font-size:13px">${todaySub?'Submitted at '+fmtTime(todaySub):'No submission yet today'}</div>
+    </div>
+    <div style="display:flex;gap:10px;background:#F0FDF4;border-radius:10px;padding:12px 14px;margin-bottom:16px">
+      <div style="flex:1;text-align:center">
+        <div style="font-size:22px;font-weight:700;color:#16A34A">${lr}</div>
+        <div style="font-size:12px;color:#16A34A;font-weight:600">🏖️ Leaves Left</div>
+      </div>
+      <div style="width:1px;background:#BBF7D0"></div>
+      <div style="flex:1;text-align:center">
+        <div style="font-size:22px;font-weight:700;color:#D97706">${hdr}</div>
+        <div style="font-size:12px;color:#D97706;font-weight:600">🟡 Half Days Left</div>
+      </div>
     </div>
     <div style="font-weight:600;margin-bottom:12px">Your Stats</div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
@@ -318,11 +343,11 @@ function openStatModal(type){
       </div>
       <div style="background:var(--bg);border-radius:10px;padding:14px;text-align:center">
         <div style="font-size:22px;font-weight:700;color:var(--warning)">${u.totalHalfDay||0}</div>
-        <div style="font-size:12px;color:var(--text3)">🟡 Half Days</div>
+        <div style="font-size:12px;color:var(--text3)">🟡 Half Days Used</div>
       </div>
       <div style="background:var(--bg);border-radius:10px;padding:14px;text-align:center">
         <div style="font-size:22px;font-weight:700;color:var(--text2)">${u.totalLeave||0}</div>
-        <div style="font-size:12px;color:var(--text3)">❌ Leaves</div>
+        <div style="font-size:12px;color:var(--text3)">🏖️ Leaves Used</div>
       </div>
       <div style="background:var(--bg);border-radius:10px;padding:14px;text-align:center">
         <div style="font-size:22px;font-weight:700;color:var(--error)">${u.totalFines||0}</div>
@@ -397,11 +422,40 @@ function renderSubHistory(){
 // Track current submission type
 S.submissionType = 'fullday';
 
+function renderSubmitAllowance(){
+  const u=S.user; if(!u) return;
+  const lr=u.leavesRemaining??3; const hr=u.halfDaysRemaining??3;
+  const slEl=document.getElementById('submitLeavesLeft'); if(slEl) slEl.textContent=lr;
+  const shEl=document.getElementById('submitHalfLeft'); if(shEl) shEl.textContent=hr;
+  // Update count badges on cards
+  const lc=document.getElementById('leaveCount');
+  if(lc) lc.textContent=lr>0?lr+' remaining':'None left';
+  if(lc) lc.style.color=lr>0?'#16A34A':'#EF4444';
+  const hc=document.getElementById('halfDayCount');
+  if(hc) hc.textContent=hr>0?hr+' remaining':'None left';
+  if(hc) hc.style.color=hr>0?'#D97706':'#EF4444';
+  // Visually disable cards with 0 count
+  const leaveCard=document.getElementById('typeLeave');
+  if(leaveCard){
+    leaveCard.style.opacity=lr>0?'1':'0.45';
+    leaveCard.style.pointerEvents=lr>0?'auto':'none';
+  }
+  const hdCard=document.getElementById('typeHalfDay');
+  if(hdCard){
+    hdCard.style.opacity=hr>0?'1':'0.45';
+    hdCard.style.pointerEvents=hr>0?'auto':'none';
+  }
+}
+
 function setSubmissionType(type){
+  const u=S.user;
+  // Guard: prevent selecting exhausted types
+  if(type==='leave' && (u?.leavesRemaining??3)<=0){ toast('No leaves remaining!','error'); return; }
+  if(type==='halfday' && (u?.halfDaysRemaining??3)<=0){ toast('No half days remaining!','error'); return; }
   S.submissionType = type;
   const types = ['fullday','halfday','leave'];
-  const colors = {fullday:'var(--primary)',halfday:'#D97706',leave:'#6B7280'};
-  const bgs = {fullday:'#EFF6FF',halfday:'#FFFBEB',leave:'#F9FAFB'};
+  const colors = {fullday:'var(--primary)',halfday:'#D97706',leave:'#16A34A'};
+  const bgs = {fullday:'#EFF6FF',halfday:'#FFFBEB',leave:'#F0FDF4'};
   const ids = {fullday:'typeFullDay',halfday:'typeHalfDay',leave:'typeLeave'};
   types.forEach(t=>{
     const el=document.getElementById(ids[t]);
@@ -462,6 +516,7 @@ async function submitProof() {
       renderTodaySub();
       renderDashboard();
       updatePendingBadge();
+      await refreshUserProfile();
     } catch(err){ console.error(err); alert("Submission error"); }
     return;
   }
@@ -492,6 +547,7 @@ async function submitProof() {
     renderTodaySub();
     renderDashboard();
     updatePendingBadge();
+    if(type==='halfday') await refreshUserProfile();
   } catch (err) {
     console.error(err);
     alert("Upload error");
