@@ -496,7 +496,7 @@ async function submitProof() {
     // Leave — no screenshots needed
     try {
       const formData = new FormData();
-      formData.append("subject", "Leave");
+      formData.append("subject", "Other");
       formData.append("hoursStudied", "0.5");
       formData.append("notes", document.getElementById("leaveReason").value || "Student requested leave");
       formData.append("submissionType", "leave");
