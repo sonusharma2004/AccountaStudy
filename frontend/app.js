@@ -93,7 +93,7 @@ async function refreshUserProfile(){
     if(!res.ok) return;
     const data=await res.json();
     const u=data.user||data.data||data;
-    if(u&&u._id){ S.user={...S.user,...u}; renderDashboard(); renderSubmitAllowance(); }
+    if(u&&(u._id||u.id)){ S.user={...S.user,...u}; renderDashboard(); renderSubmitAllowance(); }
   } catch(e){ /* silent */ }
 }
 
@@ -500,10 +500,6 @@ async function submitProof() {
       formData.append("hoursStudied", "0.5");
       formData.append("notes", document.getElementById("leaveReason").value || "Student requested leave");
       formData.append("submissionType", "leave");
-      // Create blank placeholder blobs for required fields
-      const blankBlob = new Blob([''], {type:'image/jpeg'});
-      formData.append("timerScreenshot", blankBlob, "leave.jpg");
-      formData.append("questionScreenshot", blankBlob, "leave.jpg");
       const res = await fetch(`${API_URL}/submission/upload`, {
         method: "POST",
         headers: { ...authHeader() },
@@ -517,6 +513,7 @@ async function submitProof() {
       renderDashboard();
       updatePendingBadge();
       await refreshUserProfile();
+      renderSubmitAllowance();
     } catch(err){ console.error(err); alert("Submission error"); }
     return;
   }
@@ -547,7 +544,7 @@ async function submitProof() {
     renderTodaySub();
     renderDashboard();
     updatePendingBadge();
-    if(type==='halfday') await refreshUserProfile();
+    if(type==='halfday'){ await refreshUserProfile(); renderSubmitAllowance(); }
   } catch (err) {
     console.error(err);
     alert("Upload error");
