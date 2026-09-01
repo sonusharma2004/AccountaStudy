@@ -2,7 +2,7 @@
 
 A full-stack web application that helps students build and sustain consistent study habits through a structured daily accountability framework. Students submit daily study proof (timer screenshot + question screenshot), earn streaks, compete on a leaderboard, and get verified by an admin.
 
-> **Live Demo:** [https://darling-bienenstitch-be5932.netlify.app](https://darling-bienenstitch-be5932.netlify.app)  
+> **Live Demo:** [https://accountastudy.vercel.app](https://accountastudy.vercel.app)  
 > **Backend API:** [https://accountastudy.onrender.com/api/health](https://accountastudy.onrender.com/api/health)  
 > **Project Report:** [`docs/project-report.pdf`](docs/project-report.pdf)
 
@@ -32,7 +32,7 @@ A full-stack web application that helps students build and sustain consistent st
 | File Uploads | Multer | 1.x |
 | Dev Server | Nodemon | 3.x |
 | Hosting (Backend) | Render.com | — |
-| Hosting (Frontend) | Netlify | — |
+| Hosting (Frontend) | Vercel | — |
 | IDE | Visual Studio Code | Latest |
 | Version Control | Git + GitHub | Latest |
 

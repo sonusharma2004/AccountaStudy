@@ -26,6 +26,7 @@ app.use(cors({
     'http://localhost:5500',
     'https://darling-bienenstitch-be5932.netlify.app',
     /\.netlify\.app$/,
+    /\.vercel\.app$/,
     /\.onrender\.com$/,
   ],
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
