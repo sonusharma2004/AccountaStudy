@@ -8,7 +8,8 @@
     "dev": "nodemon server.js",
     "port:free": "lsof -ti :5001 | xargs kill -9 2>/dev/null || true",
     "dev:clean": "npm run port:free && nodemon server.js",
-    "seed": "node scripts/seed.js"
+    "seed": "node scripts/seed.js",
+    "test:e2e": "node scripts/e2e-test.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

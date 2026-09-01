@@ -60,10 +60,13 @@ app.use('/api/admin',        require('./routes/admin'));
 
 // ── Health check ──
 app.get('/api/health', (req, res) => {
+  const dbStates = ['disconnected', 'connected', 'connecting', 'disconnecting'];
+  const dbState = dbStates[require('mongoose').connection.readyState] || 'unknown';
   res.json({
     success: true,
     message: 'AccountaStudy API is running ✅',
     environment: process.env.NODE_ENV,
+    database: dbState,
     timestamp: new Date().toISOString(),
   });
 });

@@ -2,7 +2,7 @@
 
 A full-stack web application that helps students build and sustain consistent study habits through a structured daily accountability framework. Students submit daily study proof (timer screenshot + question screenshot), earn streaks, compete on a leaderboard, and get verified by an admin.
 
-> **Live Demo:** [https://accountastudy.vercel.app](https://accountastudy.vercel.app)  
+> **Live Demo:** [https://accountability-study.vercel.app](https://accountability-study.vercel.app)  
 > **Backend API:** [https://accountastudy.onrender.com/api/health](https://accountastudy.onrender.com/api/health)  
 > **Project Report:** [`docs/project-report.pdf`](docs/project-report.pdf)
 

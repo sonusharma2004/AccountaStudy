@@ -9,7 +9,9 @@ const connectDB = async () => {
     console.log(`✅ MongoDB Connected: ${conn.connection.host}`);
   } catch (error) {
     console.error(`❌ MongoDB Connection Error: ${error.message}`);
-    process.exit(1);
+    // Keep the process alive so /api/health stays reachable and reports the DB state.
+    // Exiting here made the whole service look "down" when only the database was misconfigured.
+    setTimeout(connectDB, 10000);
   }
 };
 
