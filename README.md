@@ -3,7 +3,7 @@
 A full-stack web application that helps students build and sustain consistent study habits through a structured daily accountability framework. Students submit daily study proof (timer screenshot + question screenshot), earn streaks, compete on a leaderboard, and get verified by an admin.
 
 > **Live Demo:** [https://accountability-study.vercel.app](https://accountability-study.vercel.app)  
-> **Backend API:** [https://accountastudy.onrender.com/api/health](https://accountastudy.onrender.com/api/health)  
+> **Backend API:** [https://accountability-api-five.vercel.app/api/health](https://accountability-api-five.vercel.app/api/health)  
 > **Project Report:** [`docs/project-report.pdf`](docs/project-report.pdf)
 
 ---
@@ -34,8 +34,9 @@ A full-stack web application that helps students build and sustain consistent st
 | Validation | Pydantic | 2.13 |
 | Authentication | PyJWT + bcrypt | 2.13 / 5.0 |
 | File Uploads | python-multipart (stored as `bytea` in PostgreSQL) | 0.0.32 |
-| Hosting (Backend) | Render.com | — |
+| Hosting (Backend) | Vercel (Python serverless) | — |
 | Hosting (Frontend) | Vercel | — |
+| Database Hosting | Neon (serverless PostgreSQL) | — |
 | IDE | Visual Studio Code | Latest |
 | Version Control | Git + GitHub | Latest |
 
@@ -97,7 +98,7 @@ AccountaStudy/
 │   │   ├── seed.py           Demo data generator
 │   │   └── e2e_test.py       49-check end-to-end test suite
 │   ├── requirements.txt      Python dependencies
-│   ├── render.yaml           Render.com deployment config
+│   ├── vercel.json           Vercel deployment config (FastAPI service)
 │   └── .env.example          Environment variable template
 ├── frontend/                 Vanilla HTML/CSS/JS client
 │   ├── index.html            Main application page

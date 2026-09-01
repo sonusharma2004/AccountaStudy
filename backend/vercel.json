@@ -1,0 +1,14 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "services": {
+    "accountastudy-api": {
+      "root": "./",
+      "framework": "fastapi",
+      "runtime": "python",
+      "entrypoint": "app.main:app"
+    }
+  },
+  "rewrites": [
+    { "source": "/(.*)", "destination": { "service": "accountastudy-api" } }
+  ]
+}

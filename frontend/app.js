@@ -1,7 +1,7 @@
 // ===================== STATE =====================
 const API_URL = (location.hostname === "localhost" || location.hostname === "127.0.0.1")
   ? "http://localhost:5001/api"
-  : "https://accountastudy.onrender.com/api";
+  : "https://accountability-api-five.vercel.app/api";
 const API_ORIGIN = API_URL.replace(/\/api$/, "");
 
 /** Turn relative /uploads/... paths into absolute URLs for <img> when the UI is served from Live Server or another origin. */
@@ -137,8 +137,8 @@ function authHeader() {
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
-/** Fetch with timeout — avoids login hanging forever when Render backend is asleep/down. */
-async function fetchWithTimeout(url, options = {}, ms = 60000) {
+/** Fetch with timeout — avoids login hanging forever when the API is unreachable. */
+async function fetchWithTimeout(url, options = {}, ms = 30000) {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), ms);
   try {
@@ -151,12 +151,10 @@ async function fetchWithTimeout(url, options = {}, ms = 60000) {
 function backendUnavailableMessage() {
   return (
     "Backend server is not responding.\n\n" +
-    "Your backend on Render may be asleep or stopped.\n\n" +
     "Fix:\n" +
-    "1. Open https://accountastudy.onrender.com/api/health in a new tab\n" +
-    "2. Wait 1–2 minutes for Render free tier to wake up\n" +
-    "3. If it still fails, go to dashboard.render.com → your service → Manual Deploy → Deploy latest\n" +
-    "4. Then try login again"
+    `1. Open ${API_ORIGIN}/api/health in a new tab\n` +
+    "2. Check that it reports \"database\": \"connected\"\n" +
+    "3. Check your internet connection, then try login again"
   );
 }
 
