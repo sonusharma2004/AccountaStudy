@@ -1,5 +1,7 @@
 // ===================== STATE =====================
-const API_URL = "https://accountastudy.onrender.com/api";
+const API_URL = (location.hostname === "localhost" || location.hostname === "127.0.0.1")
+  ? "http://localhost:5001/api"
+  : "https://accountastudy.onrender.com/api";
 const API_ORIGIN = API_URL.replace(/\/api$/, "");
 
 /** Turn relative /uploads/... paths into absolute URLs for <img> when the UI is served from Live Server or another origin. */
@@ -47,7 +49,7 @@ async function doLogin() {
   const email = document.getElementById("loginEmail").value;
   const password = document.getElementById("loginPass").value;
   try {
-    const res = await fetch(`${API_URL}/auth/login`, {
+    const res = await fetchWithTimeout(`${API_URL}/auth/login`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email, password })
@@ -59,7 +61,7 @@ async function doLogin() {
     await loginUser(data.user);
   } catch (err) {
     console.error(err);
-    alert("Error connecting to server");
+    alert(err.name === "AbortError" ? backendUnavailableMessage() : "Error connecting to server");
   }
 }
 
@@ -133,6 +135,29 @@ function doLogout(){
 function authHeader() {
   const token = localStorage.getItem("token");
   return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
+/** Fetch with timeout — avoids login hanging forever when Render backend is asleep/down. */
+async function fetchWithTimeout(url, options = {}, ms = 60000) {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), ms);
+  try {
+    return await fetch(url, { ...options, signal: ctrl.signal });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+function backendUnavailableMessage() {
+  return (
+    "Backend server is not responding.\n\n" +
+    "Your backend on Render may be asleep or stopped.\n\n" +
+    "Fix:\n" +
+    "1. Open https://accountastudy.onrender.com/api/health in a new tab\n" +
+    "2. Wait 1–2 minutes for Render free tier to wake up\n" +
+    "3. If it still fails, go to dashboard.render.com → your service → Manual Deploy → Deploy latest\n" +
+    "4. Then try login again"
+  );
 }
 
 async function refreshUserProfile(){
