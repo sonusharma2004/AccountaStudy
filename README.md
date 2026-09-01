@@ -24,13 +24,16 @@ A full-stack web application that helps students build and sustain consistent st
 | Category | Technology | Version |
 |----------|------------|---------|
 | Frontend | HTML5, CSS3, Vanilla JavaScript | ES2022 |
-| Backend Runtime | Node.js | 18.x LTS+ |
-| Backend Framework | Express.js | 4.x |
-| Database | MongoDB Atlas (Cloud) | 6.x |
-| ODM | Mongoose | 7.x |
-| Authentication | JWT (jsonwebtoken) + bcryptjs | Latest |
-| File Uploads | Multer | 1.x |
-| Dev Server | Nodemon | 3.x |
+| Charts | Chart.js | 4.4 |
+| Backend Runtime | Python | 3.11+ |
+| Backend Framework | FastAPI | 0.141 |
+| ASGI Server | Uvicorn | 0.52 |
+| Database | PostgreSQL (Neon serverless) | 16 |
+| ORM | SQLAlchemy | 2.0 |
+| DB Driver | psycopg | 3.3 |
+| Validation | Pydantic | 2.13 |
+| Authentication | PyJWT + bcrypt | 2.13 / 5.0 |
+| File Uploads | python-multipart (stored as `bytea` in PostgreSQL) | 0.0.32 |
 | Hosting (Backend) | Render.com | — |
 | Hosting (Frontend) | Vercel | — |
 | IDE | Visual Studio Code | Latest |
@@ -81,15 +84,19 @@ A full-stack web application that helps students build and sustain consistent st
 
 ```
 AccountaStudy/
-├── backend/                  Node.js + Express + MongoDB API
-│   ├── config/               Database & file upload config
-│   ├── controllers/          Business logic (auth, submission, session, leaderboard, admin)
-│   ├── middleware/            JWT auth & error handling
-│   ├── models/               Mongoose schemas (User, Submission, Session)
-│   ├── routes/               API route definitions
-│   ├── scripts/              Database seed script
-│   ├── uploads/              Stored screenshot files
-│   ├── server.js             Entry point
+├── backend/                  FastAPI + PostgreSQL API
+│   ├── app/
+│   │   ├── main.py           Entry point, CORS, error handlers, screenshot serving
+│   │   ├── config.py         Environment settings
+│   │   ├── database.py       SQLAlchemy engine & session factory
+│   │   ├── models.py         ORM models (User, Submission, StudySession, Screenshot)
+│   │   ├── security.py       JWT issuing/verification, bcrypt hashing, auth deps
+│   │   ├── serializers.py    JSON response builders
+│   │   └── routers/          auth, submission, session, leaderboard, admin
+│   ├── scripts/
+│   │   ├── seed.py           Demo data generator
+│   │   └── e2e_test.py       49-check end-to-end test suite
+│   ├── requirements.txt      Python dependencies
 │   ├── render.yaml           Render.com deployment config
 │   └── .env.example          Environment variable template
 ├── frontend/                 Vanilla HTML/CSS/JS client
@@ -105,8 +112,8 @@ AccountaStudy/
 ## Installation / Execution Steps to Run the Project
 
 ### Prerequisites
-- Node.js v18+ — [nodejs.org](https://nodejs.org)
-- A [MongoDB Atlas](https://www.mongodb.com/atlas) account (free tier) **or** MongoDB installed locally
+- Python 3.11+ — [python.org](https://www.python.org)
+- A [Neon](https://neon.tech) account (free serverless Postgres) **or** PostgreSQL installed locally
 
 ### 1. Clone the Repository
 
@@ -119,32 +126,34 @@ cd AccountaStudy
 
 ```bash
 cd backend
-npm install
+python3 -m venv .venv
+source .venv/bin/activate          # Windows: .venv\Scripts\activate
+pip install -r requirements.txt
 cp .env.example .env
 ```
 
 Edit `.env` and fill in your values:
 
 ```env
-PORT=5001
-NODE_ENV=development
-MONGODB_URI=mongodb+srv://<user>:<password>@cluster.mongodb.net/accountastudy
+DATABASE_URL=postgresql://user:password@ep-xxxx.region.aws.neon.tech/accountastudy?sslmode=require
 JWT_SECRET=your_long_random_secret
-JWT_EXPIRES_IN=7d
+JWT_EXPIRES_DAYS=7
+ENVIRONMENT=development
+PORT=5001
 ```
 
 Start the backend:
 
 ```bash
-npm run dev        # development (auto-restart with nodemon)
+uvicorn app.main:app --reload --port 5001
 ```
 
-Backend runs at: `http://localhost:5001`
+Backend runs at: `http://localhost:5001` — interactive API docs at `/docs`
 
 ### 3. Seed Test Data
 
 ```bash
-npm run seed
+python -m scripts.seed
 ```
 
 Creates 7 users (1 admin + 6 students) with 3 days of sample submissions and 30 study sessions.
