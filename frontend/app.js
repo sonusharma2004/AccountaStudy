@@ -201,6 +201,7 @@ async function loginUser(user){
   document.getElementById('sbStreak').textContent='🔥 '+(user.streak||0);
   if(user.role==='admin'){
     document.getElementById('nav-admin-verify').style.display='flex';
+    document.getElementById('nav-admin-register').style.display='flex';
     document.getElementById('nav-admin-users').style.display='flex';
     document.getElementById('submitBtn').style.display='none';
     document.getElementById('nav-submit').style.display='none';
@@ -319,6 +320,7 @@ function nav(page){
   if(page==='analytics'){buildActGrid();initCharts();}
   if(page==='admin-verify'){fetchSubmissions().then(renderAdminSubmissions);}
   if(page==='admin-users'){fetchAdminUsers().then(()=>{renderPendingApprovals();renderAdminUsers();});}
+  if(page==='admin-register'){loadRegister();}
   if(page==='submit'){S.forceFormOpen=false;renderTodaySub();renderSubmitAllowance();refreshSubmitPage();}
   else {stopGateTicker();}
 }
@@ -494,11 +496,16 @@ function getTodaySub(uid){
 
 function isLeaveSubmission(sub){
   if(!sub) return false;
-  if(sub.status === 'leave') return true;
+  if(sub.status === 'leave' || sub.status === 'emergency') return true;
+  if(sub.submissionType === 'leave' || sub.submissionType === 'emergency') return true;
   const t = sub.timerScreenshot || '';
   const q = sub.questScreenshot || '';
-  // Backend writes 'leave/placeholder.jpg' for leave submissions
+  // Backend writes 'leave/placeholder.jpg' for both kinds of absence
   return t.includes('leave/') || q.includes('leave/');
+}
+
+function isEmergencySubmission(sub){
+  return sub?.submissionType === 'emergency' || sub?.status === 'emergency';
 }
 
 // Generate a screenshot tile with graceful onerror fallback when the file is missing.
@@ -513,8 +520,10 @@ function renderScreenshotTile(url, label, icon, size='small'){
 }
 
 function renderStatusBadge(s){
-  const map={completed:'s-completed',halfday:'s-halfday',leave:'s-leave',fine:'s-fine',pending:'s-pending'};
-  const labels={completed:'✅ Completed',halfday:'🟡 Half Day',leave:'❌ Leave',fine:'🔴 Fine',pending:'⏳ Pending'};
+  const map={completed:'s-completed',halfday:'s-halfday',leave:'s-leave',fine:'s-fine',
+             gt:'s-gt',emergency:'s-emergency',pending:'s-pending'};
+  const labels={completed:'✅ Completed',halfday:'🟡 Half Day',leave:'❌ Leave',fine:'🔴 Fine',
+                gt:'📗 Grand Test',emergency:'🚑 Emergency',pending:'⏳ Pending'};
   return `<span class="status-badge ${map[s]||'s-pending'}">${labels[s]||s}</span>`;
 }
 
@@ -587,12 +596,13 @@ function setSubmissionType(type){
   if(type==='leave' && (u?.leavesRemaining??3)<=0){ toast('No leaves remaining!','error'); return; }
   if(type==='halfday' && (u?.halfDaysRemaining??3)<=0){ toast('No half days remaining!','error'); return; }
   S.submissionType = type;
-  const types = ['fullday','halfday','leave'];
-  const colors = {fullday:'var(--primary)',halfday:'#D97706',leave:'#16A34A'};
-  const bgs = {fullday:'#EFF6FF',halfday:'#FFFBEB',leave:'#F0FDF4'};
-  const ids = {fullday:'typeFullDay',halfday:'typeHalfDay',leave:'typeLeave'};
+  const types = ['fullday','halfday','gt','leave','emergency'];
+  const colors = {fullday:'var(--primary)',halfday:'#D97706',gt:'#166534',leave:'#16A34A',emergency:'#1D4ED8'};
+  const bgs = {fullday:'#EFF6FF',halfday:'#FFFBEB',gt:'#DCFCE7',leave:'#F0FDF4',emergency:'#DBEAFE'};
+  const ids = {fullday:'typeFullDay',halfday:'typeHalfDay',gt:'typeGT',leave:'typeLeave',emergency:'typeEmergency'};
   types.forEach(t=>{
     const el=document.getElementById(ids[t]);
+    if(!el) return;
     if(t===type){
       el.style.border=`2px solid ${colors[t]}`;
       el.style.background=bgs[t];
@@ -601,9 +611,18 @@ function setSubmissionType(type){
       el.style.background='var(--bg)';
     }
   });
-  // Show/hide screenshot section and leave reason
-  document.getElementById('screenshotSection').style.display=type==='leave'?'none':'block';
-  document.getElementById('leaveSection').style.display=type==='leave'?'block':'none';
+
+  const noShots = type==='leave' || type==='emergency';
+  const isGT = type==='gt';
+  document.getElementById('screenshotSection').style.display=noShots?'none':'block';
+  document.getElementById('leaveSection').style.display=noShots?'block':'none';
+  // A Grand Test is evidenced by the single result screenshot.
+  document.getElementById('questUploadGroup').style.display=isGT?'none':'block';
+  document.getElementById('timerUploadLabel').textContent=isGT?'Grand Test Screenshot':'Study Timer Screenshot';
+  document.getElementById('timerUploadHeading').textContent=isGT?'Upload Grand Test Result':'Upload Timer Screenshot';
+  const reasonLabel=document.querySelector('#leaveSection .form-label');
+  if(reasonLabel) reasonLabel.textContent = type==='emergency'
+    ? 'What happened? (Optional)' : 'Reason for Leave (Optional)';
 }
 
 function triggerUpload(id){ /* handled by input */ }
@@ -671,14 +690,15 @@ async function readUploadResponse(res){
 async function submitProof() {
   const type = S.submissionType || 'fullday';
 
-  if(type === 'leave'){
-    // Leave — no screenshots needed
+  if(type === 'leave' || type === 'emergency'){
+    // No screenshots for either kind of absence.
+    const fallback = type==='emergency' ? "Emergency leave" : "Student requested leave";
     try {
       const formData = new FormData();
       formData.append("subject", "Other");
       formData.append("hoursStudied", "0.5");
-      formData.append("notes", document.getElementById("leaveReason").value || "Student requested leave");
-      formData.append("submissionType", "leave");
+      formData.append("notes", document.getElementById("leaveReason").value || fallback);
+      formData.append("submissionType", type);
       const res = await fetch(`${API_URL}/submission/upload`, {
         method: "POST",
         headers: { ...authHeader() },
@@ -687,6 +707,7 @@ async function submitProof() {
       const data = await res.json();
       if (!res.ok) { await handleSubmitRejection(res, data); return; }
       toast(data.message || "Form submitted successfully", "success");
+      document.getElementById("leaveReason").value = "";
       await fetchSubmissions();
       renderTodaySub();
       renderDashboard();
@@ -699,16 +720,21 @@ async function submitProof() {
     return;
   }
 
-  // Full Day or Half Day — screenshots required
+  // Full Day, Half Day or Grand Test — screenshots required
+  const isGT = type === 'gt';
   const timerB64 = S.timerFiles.timer;
   const questB64 = S.timerFiles.quest;
-  if (!timerB64 || !questB64) { alert("Please upload both screenshots."); return; }
+  if (!timerB64) {
+    alert(isGT ? "Please upload your Grand Test screenshot." : "Please upload both screenshots.");
+    return;
+  }
+  if (!isGT && !questB64) { alert("Please upload both screenshots."); return; }
   const hours = parseFloat(document.getElementById("subHours").value);
   if (!hours || hours <= 0) { alert("Please enter valid hours studied."); return; }
   try {
     const formData = new FormData();
-    formData.append("timerScreenshot", dataURLtoBlob(timerB64), "timer.jpg");
-    formData.append("questionScreenshot", dataURLtoBlob(questB64), "questions.jpg");
+    formData.append("timerScreenshot", dataURLtoBlob(timerB64), isGT ? "grandtest.jpg" : "timer.jpg");
+    if (!isGT) formData.append("questionScreenshot", dataURLtoBlob(questB64), "questions.jpg");
     formData.append("subject", document.getElementById("subSubject").value);
     formData.append("hoursStudied", String(hours));
     formData.append("notes", document.getElementById("subNotes").value || "");
@@ -1417,11 +1443,21 @@ function renderAdminSubmissions(){
             ${sub.attemptCount>1?'<span class="pill pill-amber">✏️ Corrected</span>':''}
           </div>
           ${isLeaveSubmission(sub)
-            ?`<div style="background:#F0FDF4;border:1px solid #BBF7D0;border-radius:10px;padding:14px;text-align:center;margin-bottom:10px">
-                <div style="font-size:28px;margin-bottom:6px">🏖️</div>
-                <div style="font-weight:700;color:#16A34A;font-size:13px">Leave Request</div>
-                <div style="font-size:11.5px;color:#16A34A;margin-top:2px">No screenshots required</div>
-              </div>`
+            ? (isEmergencySubmission(sub)
+              ?`<div style="background:#EFF6FF;border:1px solid #BFDBFE;border-radius:10px;padding:14px;text-align:center;margin-bottom:10px">
+                  <div style="font-size:28px;margin-bottom:6px">🚑</div>
+                  <div style="font-weight:700;color:#1D4ED8;font-size:13px">Emergency Leave</div>
+                  <div style="font-size:11.5px;color:#1D4ED8;margin-top:2px">Outside the monthly leave quota</div>
+                </div>`
+              :`<div style="background:#F0FDF4;border:1px solid #BBF7D0;border-radius:10px;padding:14px;text-align:center;margin-bottom:10px">
+                  <div style="font-size:28px;margin-bottom:6px">🏖️</div>
+                  <div style="font-weight:700;color:#16A34A;font-size:13px">Leave Request</div>
+                  <div style="font-size:11.5px;color:#16A34A;margin-top:2px">No screenshots required</div>
+                </div>`)
+            : sub.submissionType==='gt'
+            ?`<div class="sub-screenshots" style="grid-template-columns:1fr">
+              ${renderScreenshotTile(sub.timerScreenshot, 'Grand Test', '📗', 'small')}
+            </div>`
             :`<div class="sub-screenshots">
               ${renderScreenshotTile(sub.timerScreenshot, 'Timer', '⏱', 'small')}
               ${renderScreenshotTile(sub.questScreenshot, 'Questions', '📝', 'small')}
@@ -1513,7 +1549,223 @@ async function saveVerification(){
   renderTodaySub();
   // Verification changes streaks, points and today's status, so pull fresh rows.
   fetchAdminUsers().then(()=>{renderPendingApprovals();renderAdminUsers();});
+  if(S.register) loadRegister();
   toast(`Status set to "${S.verifyStatus}" for ${student?.name?.split(' ')[0]||'student'}`,'success');
+}
+
+// ===================== MONTHLY REGISTER =====================
+// The spreadsheet replacement: students down the side, days across the top.
+const REG_STATUS = {
+  completed:{label:'✅', full:'Completed', cls:'rg-completed', swatch:'#DCFCE7'},
+  gt:       {label:'GT', full:'Grand Test', cls:'rg-gt', swatch:'#166534'},
+  halfday:  {label:'½',  full:'Half Day', cls:'rg-halfday', swatch:'#F3E8FF'},
+  leave:    {label:'L',  full:'Leave', cls:'rg-leave', swatch:'#374151'},
+  emergency:{label:'🚑', full:'Emergency Leave', cls:'rg-emergency', swatch:'#1D4ED8'},
+  fine:     {label:'F',  full:'Fine', cls:'rg-fine', swatch:'#DC2626'},
+  pending:  {label:'•',  full:'Awaiting review', cls:'rg-pending', swatch:'#DBEAFE'},
+};
+const REG_SETTABLE = ['completed','gt','halfday','leave','emergency','fine'];
+
+S.register = null;
+S.registerMonth = null;
+
+function monthLabel(month){
+  const [y,m]=month.split('-').map(Number);
+  return new Date(y, m-1, 1).toLocaleDateString('en-GB',{month:'long',year:'numeric'});
+}
+
+function shiftRegisterMonth(delta){
+  const [y,m]=(S.registerMonth||todayStr().slice(0,7)).split('-').map(Number);
+  const d=new Date(y, m-1+delta, 1);
+  S.registerMonth=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+  loadRegister();
+}
+
+async function loadRegister(){
+  if(S.user?.role!=='admin') return;
+  const month=S.registerMonth||todayStr().slice(0,7);
+  S.registerMonth=month;
+  try{
+    const res=await fetch(`${API_URL}/admin/register?month=${month}`,{headers:{...authHeader()}});
+    if(!res.ok){ toast('Could not load the register','error'); return; }
+    S.register=await res.json();
+    renderRegister();
+  }catch(err){
+    console.error('Register load failed:',err);
+    toast('Could not load the register','error');
+  }
+}
+
+function renderRegister(){
+  const data=S.register;
+  if(!data) return;
+  document.getElementById('registerMonthLabel').textContent=monthLabel(data.month);
+
+  const legend=document.getElementById('registerLegend');
+  legend.innerHTML=Object.entries(REG_STATUS).map(([,v])=>
+    `<span class="rg-legend-item"><span class="rg-legend-swatch" style="background:${v.swatch}"></span>${v.full}</span>`
+  ).join('')+`<span class="rg-legend-item" style="margin-left:4px">Fine costs ₹${data.fineAmount} off the deposit</span>`;
+
+  const empty=document.getElementById('registerEmpty');
+  const table=document.getElementById('registerTable');
+  if(!data.students.length){ empty.style.display='block'; table.style.display='none'; return; }
+  empty.style.display='none'; table.style.display='';
+
+  const dayNum=d=>Number(d.slice(8,10));
+  const isWeekend=d=>{const x=new Date(d+'T00:00:00');return x.getDay()===0||x.getDay()===6;};
+
+  document.getElementById('registerHead').innerHTML=`<tr>
+    <th class="rg-name">Student</th>
+    <th class="rg-meta">₹ Dep</th>
+    <th class="rg-meta">Lv</th>
+    <th class="rg-meta">½D</th>
+    ${data.days.map(d=>`<th class="${d===data.today?'rg-today':''}${isWeekend(d)?' rg-weekend':''}" title="${d}">${dayNum(d)}</th>`).join('')}
+  </tr>`;
+
+  document.getElementById('registerBody').innerHTML=data.students.map(st=>{
+    const type=st.studentType==='intern'?'Intern':'Full Time';
+    const cells=data.days.map(d=>{
+      const cell=st.cells[d];
+      const future=d>data.today;
+      const meta=cell?REG_STATUS[cell.status]:null;
+      const classes=['rg-day'];
+      if(d===data.today) classes.push('rg-today');
+      else if(isWeekend(d)) classes.push('rg-weekend');
+      if(cell?.isLate) classes.push('rg-late-dot');
+      const inner=meta?`<span class="rg-chip ${meta.cls}">${meta.label}</span>`:'';
+      const tip=cell
+        ? `${st.name} · ${d} · ${meta?meta.full:cell.status}${cell.isLate?' (late)':''}`
+        : `${st.name} · ${d} · nothing recorded`;
+      const click=future?'':`onclick="openCellMenu(event,'${st.id}','${d}')"`;
+      return `<td class="${classes.join(' ')}" style="${future?'cursor:default;opacity:.4':''}" title="${tip}" ${click}>${inner}</td>`;
+    }).join('');
+    const low=st.deposit<=0;
+    return `<tr${st.isActive===false?' style="opacity:.5"':''}>
+      <td class="rg-name" title="${st.email}">
+        <div>${st.name}</div><div class="rg-sub">${type}</div>
+      </td>
+      <td class="rg-meta rg-deposit" style="${low?'color:#DC2626':''}" title="Click to change the deposit"
+          onclick="editDeposit('${st.id}','${(st.name||'').replace(/'/g,"\\'")}',${st.deposit})">₹${st.deposit}</td>
+      <td class="rg-meta">${st.leavesRemaining}</td>
+      <td class="rg-meta">${st.halfDaysRemaining}</td>
+      ${cells}
+    </tr>`;
+  }).join('');
+}
+
+function openCellMenu(event, studentId, date){
+  event.stopPropagation();
+  const menu=document.getElementById('cellMenu');
+  const student=S.register?.students.find(s=>s.id===studentId);
+  const cell=student?.cells[date];
+
+  menu.innerHTML=`
+    <div style="font-size:11px;color:var(--text3);padding:4px 10px 8px;border-bottom:1px solid var(--border);margin-bottom:6px">
+      ${student?student.name:''} · ${date}
+    </div>
+    ${REG_SETTABLE.map(s=>{
+      const m=REG_STATUS[s];
+      const active=cell?.status===s;
+      return `<div class="cell-menu-item" onclick="setCellStatus('${studentId}','${date}','${s}')">
+        <span class="rg-legend-swatch" style="background:${m.swatch}"></span>
+        <span style="flex:1">${m.full}</span>
+        ${active?'<span style="color:var(--primary);font-weight:700">✓</span>':''}
+      </div>`;
+    }).join('')}
+    ${cell?.hasScreenshots
+      ? `<div class="cell-menu-item" style="border-top:1px solid var(--border);margin-top:6px;padding-top:10px"
+             onclick="openVerifyFromRegister('${cell.submissionId}')">🖼 View screenshots</div>`
+      : ''}`;
+
+  menu.style.display='block';
+  // Keep the popover on screen when the cell is near an edge.
+  const r=event.currentTarget.getBoundingClientRect();
+  const w=menu.offsetWidth, h=menu.offsetHeight;
+  menu.style.left=`${Math.min(r.left, window.innerWidth-w-12)}px`;
+  menu.style.top=`${r.bottom+h>window.innerHeight ? Math.max(8, r.top-h-4) : r.bottom+4}px`;
+}
+
+function closeCellMenu(){
+  const menu=document.getElementById('cellMenu');
+  if(menu) menu.style.display='none';
+}
+document.addEventListener('click', closeCellMenu);
+
+async function setCellStatus(studentId, date, status){
+  closeCellMenu();
+  try{
+    const res=await fetch(`${API_URL}/admin/register/mark`,{
+      method:'POST',
+      headers:{'Content-Type':'application/json',...authHeader()},
+      body:JSON.stringify({userId:studentId, date, status}),
+    });
+    const data=await res.json();
+    if(!res.ok){ toast(data.message||'Could not set that status','error'); return; }
+    // Patch the row in place so the grid does not jump back to the top.
+    const student=S.register.students.find(s=>s.id===studentId);
+    if(student){
+      student.cells[date]=data.cell;
+      Object.assign(student, data.student);
+    }
+    renderRegister();
+    toast(data.message,'success');
+    fetchSubmissions().then(()=>{updatePendingBadge();renderAdminSubmissions();});
+  }catch(err){
+    console.error(err);
+    toast('Network error','error');
+  }
+}
+
+async function editDeposit(studentId, name, current){
+  closeCellMenu();
+  const raw=prompt(`Deposit for ${name} (in ₹):`, current);
+  if(raw===null) return;
+  const amount=parseInt(String(raw).replace(/[^0-9]/g,''),10);
+  if(Number.isNaN(amount)){ toast('Enter a number','error'); return; }
+  try{
+    const res=await fetch(`${API_URL}/admin/user/${studentId}/deposit`,{
+      method:'PUT',
+      headers:{'Content-Type':'application/json',...authHeader()},
+      body:JSON.stringify({amount}),
+    });
+    const data=await res.json();
+    if(!res.ok){ toast(data.message||'Could not update the deposit','error'); return; }
+    const student=S.register.students.find(s=>s.id===studentId);
+    if(student) student.deposit=data.deposit;
+    renderRegister();
+    toast(data.message,'success');
+  }catch(err){ toast('Network error','error'); }
+}
+
+function openVerifyFromRegister(submissionId){
+  closeCellMenu();
+  nav('admin-verify');
+  setTimeout(()=>openVerifyModal(submissionId), 200);
+}
+
+// Same grid, as a file you can open in Excel or paste into a sheet.
+function exportRegisterCsv(){
+  const data=S.register;
+  if(!data) return;
+  const head=['Student','Type','Email','Deposit','Leaves Left','Half Days Left',
+              ...data.days.map(d=>d.slice(8,10))];
+  const rows=data.students.map(st=>[
+    st.name, st.studentType==='intern'?'Intern':'Full Time', st.email,
+    st.deposit, st.leavesRemaining, st.halfDaysRemaining,
+    ...data.days.map(d=>{
+      const c=st.cells[d];
+      if(!c) return '';
+      return (REG_STATUS[c.status]?.full||c.status)+(c.isLate?' (late)':'');
+    }),
+  ]);
+  const esc=v=>`"${String(v??'').replace(/"/g,'""')}"`;
+  const csv=[head,...rows].map(r=>r.map(esc).join(',')).join('\r\n');
+  const url=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));
+  const a=document.createElement('a');
+  a.href=url; a.download=`register-${data.month}.csv`;
+  document.body.appendChild(a); a.click(); a.remove();
+  URL.revokeObjectURL(url);
+  toast('Register downloaded','success');
 }
 
 // The leaderboard only lists students with verified study this week, so the

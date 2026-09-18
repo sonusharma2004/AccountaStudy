@@ -48,6 +48,9 @@ class Settings(BaseSettings):
     # One real attempt plus one correction if they uploaded the wrong picture.
     max_daily_submissions: int = 2
 
+    # Rupees taken off a student's deposit each time a day is marked as a fine.
+    fine_amount: int = 100
+
     @property
     def tz(self) -> timezone:
         return timezone(timedelta(minutes=self.timezone_offset_minutes))

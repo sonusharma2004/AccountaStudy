@@ -45,7 +45,7 @@ def to_local_date(value: datetime | None) -> str | None:
 
 
 def screenshot_url(submission: Submission, which: str) -> str | None:
-    if submission.submission_type == "leave":
+    if submission.submission_type in ("leave", "emergency"):
         return LEAVE_PLACEHOLDER
     shot_id = (
         submission.timer_screenshot_id if which == "timer" else submission.question_screenshot_id
@@ -68,6 +68,9 @@ def user_payload(user: User) -> dict:
         "totalHalfDay": user.total_half_day,
         "totalLeave": user.total_leave,
         "totalFines": user.total_fines,
+        "totalGrandTests": user.total_gt,
+        "totalEmergency": user.total_emergency,
+        "deposit": user.deposit,
         "points": user.points,
         "leavesRemaining": user.leaves_remaining,
         "halfDaysRemaining": user.half_days_remaining,

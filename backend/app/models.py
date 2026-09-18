@@ -30,9 +30,24 @@ SUBJECTS = [
     "Other",
 ]
 
-STATUSES = ["pending", "completed", "halfday", "leave", "fine"]
+STATUSES = ["pending", "completed", "halfday", "leave", "fine", "gt", "emergency"]
 
-STATUS_POINTS = {"completed": 100, "halfday": 40, "leave": 0, "fine": -20, "pending": 0}
+STATUS_POINTS = {
+    "completed": 100,
+    # A Grand Test day is a full day's work, just evidenced by one screenshot.
+    "gt": 100,
+    "halfday": 40,
+    "leave": 0,
+    # Emergency leave sits outside the monthly quota and costs nothing.
+    "emergency": 0,
+    "fine": -20,
+    "pending": 0,
+}
+
+# Statuses that keep a student's streak alive and add a day to it.
+STREAK_BUILDING = {"completed", "gt", "halfday"}
+# Statuses that neither build nor break the streak.
+STREAK_NEUTRAL = {"leave", "emergency"}
 
 
 def _uuid() -> uuid.UUID:
@@ -62,7 +77,12 @@ class User(Base):
     total_half_day: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     total_leave: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     total_fines: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    total_gt: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    total_emergency: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     points: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+
+    # Money the student has put in, in rupees. Each fine eats into it.
+    deposit: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
 
     leaves_remaining: Mapped[int] = mapped_column(Integer, default=3, nullable=False)
     half_days_remaining: Mapped[int] = mapped_column(Integer, default=3, nullable=False)
@@ -144,6 +164,9 @@ class Submission(Base):
     attempt_count: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
     # Set when the upload arrived after the window closed.
     is_late: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    # True when the admin entered this day from the register rather than the
+    # student uploading anything, e.g. marking a no-show as a fine.
+    marked_by_admin: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
     updated_at: Mapped[datetime] = mapped_column(

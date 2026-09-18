@@ -118,6 +118,8 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 .s-leave{background:var(--bg2);color:var(--text2)}
 .s-fine{background:var(--error-light);color:var(--error-dark)}
 .s-pending{background:#F5F3FF;color:#6D28D9}
+.s-gt{background:#166534;color:#fff}
+.s-emergency{background:#1D4ED8;color:#fff}
 
 /* ===================== FORM ===================== */
 .form-group{margin-bottom:18px}
@@ -225,6 +227,8 @@ body.focus-mode #focus-quote{display:block}
 .so-halfday{background:var(--warning-light);color:var(--warning-dark);border-color:rgba(245,158,11,0.3)}
 .so-leave{background:var(--bg2);color:var(--text2);border-color:var(--border2)}
 .so-fine{background:var(--error-light);color:var(--error-dark);border-color:rgba(239,68,68,0.3)}
+.so-gt{background:#DCFCE7;color:#166534;border-color:rgba(22,101,52,0.3)}
+.so-emergency{background:#DBEAFE;color:#1D4ED8;border-color:rgba(29,78,216,0.3)}
 .status-opt.selected{box-shadow:0 0 0 2px currentColor}
 
 /* ===================== CHART ===================== */
@@ -280,3 +284,37 @@ body.focus-mode #focus-quote{display:block}
 
 /* ===================== PROFILE DRAWER ===================== */
 @keyframes slideInRight{from{transform:translateX(100%)}to{transform:translateX(0)}}
+/* ===================== MONTHLY REGISTER ===================== */
+/* A spreadsheet-shaped view: the name column and the date header both stay put
+   while the month scrolls sideways underneath them. */
+.register-scroll{overflow:auto;max-height:70vh;border:1px solid var(--border);border-radius:var(--r2)}
+.register-table{border-collapse:separate;border-spacing:0;font-size:12px;width:max-content;min-width:100%}
+.register-table th,.register-table td{border-right:1px solid var(--border);border-bottom:1px solid var(--border);padding:0;background:#fff}
+.register-table thead th{position:sticky;top:0;z-index:3;background:var(--bg);font-weight:700;color:var(--text2);
+  padding:7px 6px;text-align:center;white-space:nowrap}
+.register-table th.rg-name,.register-table td.rg-name{position:sticky;left:0;z-index:2;min-width:190px;max-width:190px;
+  text-align:left;padding:7px 10px;background:#fff;box-shadow:1px 0 0 var(--border)}
+.register-table thead th.rg-name{z-index:4;background:var(--bg)}
+.register-table td.rg-name{font-weight:600;color:var(--text)}
+.rg-sub{font-size:11px;color:var(--text3);font-weight:500}
+.rg-meta{min-width:52px;text-align:center;padding:7px 6px;color:var(--text2);white-space:nowrap}
+.rg-day{min-width:40px;height:34px;text-align:center;cursor:pointer;transition:box-shadow .12s}
+.rg-day:hover{box-shadow:inset 0 0 0 2px var(--primary)}
+.rg-today{background:#FFFBEB}
+.rg-weekend{background:#FAFAFA}
+.rg-chip{display:block;width:100%;height:100%;line-height:34px;font-size:11px;font-weight:700;letter-spacing:.2px}
+.rg-completed{background:#DCFCE7;color:#15803D}
+.rg-gt{background:#166534;color:#fff}
+.rg-halfday{background:#F3E8FF;color:#7E22CE}
+.rg-leave{background:#374151;color:#fff}
+.rg-emergency{background:#1D4ED8;color:#fff}
+.rg-fine{background:#DC2626;color:#fff}
+.rg-pending{background:#DBEAFE;color:#1D4ED8}
+.rg-late-dot{position:relative}
+.rg-late-dot::after{content:'';position:absolute;top:2px;right:2px;width:5px;height:5px;border-radius:50%;background:#DC2626}
+.rg-deposit{cursor:pointer;font-weight:700;color:var(--text)}
+.rg-deposit:hover{text-decoration:underline}
+.rg-legend-item{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;color:var(--text2)}
+.rg-legend-swatch{width:16px;height:16px;border-radius:4px;display:inline-block}
+.cell-menu-item{display:flex;align-items:center;gap:9px;padding:8px 10px;border-radius:8px;cursor:pointer;font-size:13px;color:var(--text)}
+.cell-menu-item:hover{background:var(--bg)}

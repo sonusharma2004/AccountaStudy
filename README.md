@@ -156,6 +156,10 @@ SUBMISSION_OPENS_AT=10:00
 SUBMISSION_CLOSES_AT=22:00
 MAX_DAILY_SUBMISSIONS=2
 
+# Rupees taken off a student's deposit when a day is marked as a fine. Flipping
+# the day to any other status refunds it.
+FINE_AMOUNT=100
+
 # Indian Standard Time. Every calendar day boundary is derived from this, so a
 # submission made at 1 AM is still filed against the correct day.
 TIMEZONE_OFFSET_MINUTES=330
@@ -231,6 +235,9 @@ Open: [http://localhost:5500](http://localhost:5500)
 | POST | /api/session/stop | Stop study session |
 | GET | /api/leaderboard | Get leaderboard rankings |
 | GET | /api/admin/stats | System statistics (admin only) |
+| GET | /api/admin/register | The month as a grid: one row per student, one column per day (admin only) |
+| POST | /api/admin/register/mark | Set a status for one student on one day, submission or not (admin only) |
+| PUT | /api/admin/user/{id}/deposit | Set a student's deposit (admin only) |
 | GET | /api/admin/pending | Students waiting for approval (admin only) |
 | PUT | /api/admin/user/{id}/approve | Let a pending student in (admin only) |
 | POST | /api/admin/student | Create a student and return a one-time password (admin only) |

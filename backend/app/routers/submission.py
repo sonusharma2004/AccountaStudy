@@ -10,14 +10,23 @@ from sqlalchemy.orm import Session, selectinload
 
 from app.config import settings
 from app.database import get_db
-from app.models import STATUS_POINTS, SUBJECTS, Screenshot, Submission, User
+from app.models import (
+    STATUS_POINTS,
+    STREAK_BUILDING,
+    SUBJECTS,
+    Screenshot,
+    Submission,
+    User,
+)
 from app.security import get_current_user, require_admin
 from app.serializers import iso, local_now, submission_payload, today_str
 
 router = APIRouter(tags=["submission"])
 
 ALLOWED_IMAGE_EXTS = {".jpg", ".jpeg", ".png", ".gif", ".webp"}
-VERIFIABLE_STATUSES = ["completed", "halfday", "leave", "fine"]
+VERIFIABLE_STATUSES = ["completed", "gt", "halfday", "leave", "emergency", "fine"]
+# "full" is the legacy spelling of a normal day and still arrives from old clients.
+SUBMISSION_TYPES = {"full", "fullday", "halfday", "leave", "emergency", "gt"}
 
 
 def _pretty_time(value: time) -> str:
@@ -123,6 +132,71 @@ async def _store_screenshot(db: Session, upload: UploadFile) -> Screenshot:
     return shot
 
 
+def _unwind_status(student: User, status: str) -> None:
+    """Undo whatever a status previously awarded, so nothing double counts."""
+    if status == "completed":
+        student.total_completed = max(0, student.total_completed - 1)
+    elif status == "gt":
+        student.total_gt = max(0, student.total_gt - 1)
+    elif status == "halfday":
+        student.total_half_day = max(0, student.total_half_day - 1)
+    elif status == "leave":
+        student.total_leave = max(0, student.total_leave - 1)
+    elif status == "emergency":
+        student.total_emergency = max(0, student.total_emergency - 1)
+    elif status == "fine":
+        student.total_fines = max(0, student.total_fines - 1)
+        # Give the money back; the day is no longer a fine.
+        student.deposit += settings.fine_amount
+
+    if status in STREAK_BUILDING:
+        student.streak = max(0, student.streak - 1)
+    student.points = max(0, student.points - STATUS_POINTS.get(status, 0))
+
+
+def _wind_status(student: User, status: str) -> None:
+    if status == "completed":
+        student.total_completed += 1
+    elif status == "gt":
+        student.total_gt += 1
+    elif status == "halfday":
+        student.total_half_day += 1
+    elif status == "leave":
+        student.total_leave += 1
+    elif status == "emergency":
+        student.total_emergency += 1
+    elif status == "fine":
+        student.total_fines += 1
+        student.streak = 0
+        student.deposit -= settings.fine_amount
+
+    if status in STREAK_BUILDING:
+        student.streak += 1
+    student.points = max(0, student.points + STATUS_POINTS.get(status, 0))
+
+
+def apply_status_change(
+    db: Session, sub: Submission, new_status: str, admin: User
+) -> User | None:
+    """Move a day to a new status and keep the student's tallies honest.
+
+    Shared by the verification panel and the monthly register so the two can
+    never disagree about what a status is worth. Caller commits.
+    """
+    previous_status = sub.status
+    sub.status = new_status
+    sub.verified_by = admin.id
+    sub.verified_at = None
+    sub.apply_status_points()
+
+    student = db.get(User, sub.user_id)
+    if student is not None and previous_status != new_status:
+        _unwind_status(student, previous_status)
+        _wind_status(student, new_status)
+        student.longest_streak = max(student.longest_streak, student.streak)
+    return student
+
+
 def _discard_screenshot(db: Session, shot_id: uuid.UUID | None) -> None:
     """Delete an image that is being replaced.
 
@@ -158,10 +232,20 @@ async def _handle_upload(
         raise HTTPException(423, gate["lockReason"])
 
     sub_type = (submissionType or "full").lower()
-    is_leave = sub_type == "leave"
-    is_half_day = sub_type == "halfday"
+    if sub_type not in SUBMISSION_TYPES:
+        raise HTTPException(400, f"`{submissionType}` is not a valid submission type.")
 
-    if not is_leave and (timerScreenshot is None or questionScreenshot is None):
+    is_leave = sub_type == "leave"
+    is_emergency = sub_type == "emergency"
+    is_half_day = sub_type == "halfday"
+    is_grand_test = sub_type == "gt"
+    needs_no_shots = is_leave or is_emergency
+
+    if is_grand_test and timerScreenshot is None:
+        raise HTTPException(400, "A Grand Test needs your test result screenshot.")
+    if not needs_no_shots and not is_grand_test and (
+        timerScreenshot is None or questionScreenshot is None
+    ):
         raise HTTPException(400, "Both timer screenshot and question screenshot are required.")
 
     if is_leave and user.leaves_remaining <= 0:
@@ -185,11 +269,16 @@ async def _handle_upload(
     if len(clean_notes) > 500:
         raise HTTPException(400, "Notes cannot exceed 500 characters")
 
-    timer_shot = None if is_leave else await _store_screenshot(db, timerScreenshot)
-    question_shot = None if is_leave else await _store_screenshot(db, questionScreenshot)
+    timer_shot = None if needs_no_shots else await _store_screenshot(db, timerScreenshot)
+    # A Grand Test is evidenced by the single result screenshot above.
+    question_shot = (
+        None
+        if needs_no_shots or is_grand_test
+        else await _store_screenshot(db, questionScreenshot)
+    )
 
-    is_new = existing is None
     previous_hours = 0.0
+    previous_type = existing.submission_type if existing else None
     if existing:
         sub = existing
         previous_hours = sub.hours_studied
@@ -226,10 +315,19 @@ async def _handle_upload(
     # Replacing a pending submission must not bank the hours a second time.
     user.total_study_hours = max(0.0, user.total_study_hours - previous_hours + hours)
     user.last_study_date = func.now()
-    if is_new and is_leave:
-        user.leaves_remaining = max(0, user.leaves_remaining - 1)
-    if is_new and is_half_day:
-        user.half_days_remaining = max(0, user.half_days_remaining - 1)
+
+    # A correction can change the type, so hand back whatever the first attempt
+    # spent before charging for the new one. Emergency leave is deliberately
+    # absent: it sits outside the monthly quota.
+    if previous_type != sub_type:
+        if previous_type == "leave":
+            user.leaves_remaining += 1
+        elif previous_type == "halfday":
+            user.half_days_remaining += 1
+        if is_leave:
+            user.leaves_remaining = max(0, user.leaves_remaining - 1)
+        elif is_half_day:
+            user.half_days_remaining = max(0, user.half_days_remaining - 1)
 
     db.commit()
     db.refresh(sub)
@@ -408,45 +506,8 @@ def verify_submission(
     previous_status = sub.status
     new_status = body.status
 
-    sub.status = new_status
     sub.admin_notes = (body.adminNotes or "").strip()[:300]
-    sub.verified_by = admin.id
-    sub.verified_at = None
-    sub.apply_status_points()
-
-    student = db.get(User, sub.user_id)
-    if student and previous_status != new_status:
-        # Roll back the previous status so re-verification never double counts.
-        if previous_status == "completed":
-            student.total_completed = max(0, student.total_completed - 1)
-            student.streak = max(0, student.streak - 1)
-            student.points = max(0, student.points - STATUS_POINTS["completed"])
-        elif previous_status == "halfday":
-            student.total_half_day = max(0, student.total_half_day - 1)
-            student.streak = max(0, student.streak - 1)
-            student.points = max(0, student.points - STATUS_POINTS["halfday"])
-        elif previous_status == "leave":
-            student.total_leave = max(0, student.total_leave - 1)
-        elif previous_status == "fine":
-            student.total_fines = max(0, student.total_fines - 1)
-            student.points += 20
-
-        if new_status == "completed":
-            student.total_completed += 1
-            student.streak += 1
-            student.points += STATUS_POINTS["completed"]
-        elif new_status == "halfday":
-            student.total_half_day += 1
-            student.streak += 1
-            student.points += STATUS_POINTS["halfday"]
-        elif new_status == "leave":
-            student.total_leave += 1
-        elif new_status == "fine":
-            student.total_fines += 1
-            student.streak = 0
-            student.points = max(0, student.points + STATUS_POINTS["fine"])
-
-        student.longest_streak = max(student.longest_streak, student.streak)
+    student = apply_status_change(db, sub, new_status, admin)
 
     db.commit()
     db.refresh(sub)
