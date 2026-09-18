@@ -19,6 +19,7 @@ from app.models import (
     Submission,
     User,
 )
+from app.quota import count_used, remaining, sync_quota
 from app.security import get_current_user, require_admin
 from app.serializers import iso, local_now, submission_payload, today_str
 
@@ -195,6 +196,9 @@ def apply_status_change(
         _unwind_status(student, previous_status)
         _wind_status(student, new_status)
         student.longest_streak = max(student.longest_streak, student.streak)
+        # The day may have just become (or stopped being) a leave or half day.
+        db.flush()
+        sync_quota(db, student)
     return student
 
 
@@ -279,7 +283,6 @@ async def _handle_upload(
     )
 
     previous_hours = 0.0
-    previous_type = existing.submission_type if existing else None
     if existing:
         sub = existing
         previous_hours = sub.hours_studied
@@ -317,18 +320,10 @@ async def _handle_upload(
     user.total_study_hours = max(0.0, user.total_study_hours - previous_hours + hours)
     user.last_study_date = func.now()
 
-    # A correction can change the type, so hand back whatever the first attempt
-    # spent before charging for the new one. Emergency leave is deliberately
-    # absent: it sits outside the monthly quota.
-    if previous_type != sub_type:
-        if previous_type == "leave":
-            user.leaves_remaining += 1
-        elif previous_type == "halfday":
-            user.half_days_remaining += 1
-        if is_leave:
-            user.leaves_remaining = max(0, user.leaves_remaining - 1)
-        elif is_half_day:
-            user.half_days_remaining = max(0, user.half_days_remaining - 1)
+    # Recount rather than adjust, so a correction that changes the type hands
+    # back what the first attempt spent without any bookkeeping of its own.
+    db.flush()
+    sync_quota(db, user)
 
     db.commit()
     db.refresh(sub)
@@ -487,6 +482,11 @@ def my_register(
     for cell in cells.values():
         counts[cell["status"]] = counts.get(cell["status"], 0) + 1
 
+    # From the month on screen, so paging back shows that month's allowance.
+    leaves_left, half_days_left = remaining(
+        *count_used((c["status"], c["submissionType"], 1) for c in cells.values())
+    )
+
     return {
         "success": True,
         "month": month,
@@ -500,8 +500,8 @@ def my_register(
         "finesThisMonth": counts.get("fine", 0),
         "deductedThisMonth": counts.get("fine", 0) * settings.fine_amount,
         "deposit": user.deposit,
-        "leavesRemaining": user.leaves_remaining,
-        "halfDaysRemaining": user.half_days_remaining,
+        "leavesRemaining": leaves_left,
+        "halfDaysRemaining": half_days_left,
         "streak": user.streak,
         "points": user.points,
     }

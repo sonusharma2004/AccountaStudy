@@ -16,6 +16,7 @@ from sqlalchemy.orm import Session, selectinload
 from app.config import settings
 from app.database import get_db
 from app.models import STATUSES, Submission, User
+from app.quota import count_used, remaining
 from app.routers.submission import VERIFIABLE_STATUSES, apply_status_change
 from app.security import hash_password, require_admin
 from app.serializers import iso, local_now, today_str
@@ -254,6 +255,11 @@ def monthly_register(month: str | None = None, db: Session = Depends(get_db)):
         tally: dict[str, int] = {}
         for cell in cells.values():
             tally[cell["status"]] = tally.get(cell["status"], 0) + 1
+        # Read the allowance off the month on screen rather than the stored
+        # counter, so paging back to an earlier month shows that month's usage.
+        leaves_left, half_days_left = remaining(
+            *count_used((c["status"], c["submissionType"], 1) for c in cells.values())
+        )
         payload.append(
             {
                 "id": str(student.id),
@@ -263,8 +269,8 @@ def monthly_register(month: str | None = None, db: Session = Depends(get_db)):
                 "studentType": student.student_type,
                 "isActive": student.is_active,
                 "deposit": student.deposit,
-                "leavesRemaining": student.leaves_remaining,
-                "halfDaysRemaining": student.half_days_remaining,
+                "leavesRemaining": leaves_left,
+                "halfDaysRemaining": half_days_left,
                 "streak": student.streak,
                 "points": student.points,
                 "cells": cells,

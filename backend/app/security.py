@@ -43,25 +43,23 @@ def _unauthorized(message: str) -> HTTPException:
     return HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=message)
 
 
-MONTHLY_LEAVES = 3
-MONTHLY_HALF_DAYS = 3
-
-
 def refresh_monthly_allowance(user: User, db: Session) -> None:
-    """Top the leave and half-day quota back up at the start of each month.
+    """Bring the leave and half-day quota in line with the register.
 
-    Called from the auth dependency so every authenticated request sees current
-    numbers, whether it is the dashboard reading them or an upload spending one.
+    Called from the auth dependency, so every authenticated request sees a
+    number that matches the calendar next to it, and the month rolls over on
+    its own. Recounting on read also repairs any row that predates the counter
+    being derived, which saves a migration.
+
+    It costs one grouped count over a single student's days for the current
+    month, and only writes when something actually moved.
     """
-    from app.serializers import local_now
+    from app.quota import sync_quota
 
-    period = local_now().strftime("%Y-%m")
-    if user.allowance_period == period:
-        return
-    user.allowance_period = period
-    user.leaves_remaining = MONTHLY_LEAVES
-    user.half_days_remaining = MONTHLY_HALF_DAYS
-    db.commit()
+    before = (user.allowance_period, user.leaves_remaining, user.half_days_remaining)
+    sync_quota(db, user)
+    if (user.allowance_period, user.leaves_remaining, user.half_days_remaining) != before:
+        db.commit()
 
 
 def get_current_user(request: Request, db: Session = Depends(get_db)) -> User:
