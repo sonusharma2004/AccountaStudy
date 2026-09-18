@@ -141,6 +141,18 @@ JWT_SECRET=your_long_random_secret
 JWT_EXPIRES_DAYS=7
 ENVIRONMENT=development
 PORT=5001
+
+# Students must enter this code to register. Leave it blank to let anyone
+# with the link sign up.
+JOIN_CODE=ABC123
+
+# Indian Standard Time. Every calendar day boundary is derived from this, so a
+# submission made at 1 AM is still filed against the correct day.
+TIMEZONE_OFFSET_MINUTES=330
+
+# Screenshots are resized in the browser first; this is the server-side backstop.
+# Keep both images comfortably under the host's 4.5MB request limit.
+MAX_FILE_SIZE=2097152
 ```
 
 Start the backend:
@@ -158,6 +170,11 @@ python -m scripts.seed
 ```
 
 Creates 7 users (1 admin + 6 students) with 3 days of sample submissions and 30 study sessions.
+
+> **For a real cohort, do not seed.** Run `python scripts/reset_for_production.py --email you@example.com`
+> instead. It clears every record and creates a single admin with a generated
+> password, printed once. Students then register themselves using `JOIN_CODE`,
+> or the admin adds them from the Student Manager.
 
 ### 4. Frontend Setup
 
@@ -182,7 +199,8 @@ Open: [http://localhost:5500](http://localhost:5500)
 | Student | rahul@school.edu | pass123 | Intern |
 | Student | kavya@school.edu | pass123 | Full-time Aspirant |
 
-> Each student starts the term with **3 leaves** and **3 half-days** that are automatically deducted when used.
+> Each student gets **3 leaves** and **3 half-days** per month. They are deducted
+> when used and refill automatically on the 1st.
 
 ---
 
@@ -191,7 +209,8 @@ Open: [http://localhost:5500](http://localhost:5500)
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | POST | /api/auth/login | Login |
-| POST | /api/auth/register | Register new user |
+| POST | /api/auth/register | Register new user (requires the join code when one is set) |
+| GET | /api/auth/signup-info | Whether a join code is currently required |
 | GET | /api/auth/me | Get current user profile |
 | POST | /api/submission/upload | Submit daily proof (with screenshots) |
 | GET | /api/submission/my | Student's own submissions |
@@ -201,6 +220,10 @@ Open: [http://localhost:5500](http://localhost:5500)
 | POST | /api/session/stop | Stop study session |
 | GET | /api/leaderboard | Get leaderboard rankings |
 | GET | /api/admin/stats | System statistics (admin only) |
+| POST | /api/admin/student | Create a student and return a one-time password (admin only) |
+| PUT | /api/admin/user/{id}/password | Reset a student's password (admin only) |
+| GET | /api/admin/export/submissions | Download submissions as CSV (admin only) |
+| GET | /api/admin/export/students | Download the student roster as CSV (admin only) |
 
 ---
 
