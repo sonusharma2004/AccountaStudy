@@ -129,6 +129,10 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="18 20 18 10"/><polyline points="12 20 12 4"/><polyline points="6 20 6 14"/></svg>
         Leaderboard
       </div>
+      <div class="nav-item" onclick="nav('my-register')" id="nav-my-register">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 10h18M8 2v4M16 2v4"/></svg>
+        My Register
+      </div>
       <div class="nav-item" onclick="nav('analytics')" id="nav-analytics">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
         Analytics
@@ -551,6 +555,45 @@
         <div style="font-size:48px;margin-bottom:12px">📭</div>
         <div style="font-weight:600;color:var(--text);font-size:16px">No submissions</div>
         <div style="color:var(--text3);font-size:13px;margin-top:4px">Students haven't submitted yet today</div>
+      </div>
+    </div>
+
+    <!-- STUDENT: MY REGISTER -->
+    <div class="page" id="page-my-register">
+      <div class="grid g2-1" style="align-items:start;gap:20px">
+        <div>
+          <div class="card">
+            <div class="flex-b mb-16" style="flex-wrap:wrap;gap:12px">
+              <div>
+                <div class="section-heading" style="margin:0">🗓 My Register</div>
+                <div style="font-size:12.5px;color:var(--text2);margin-top:2px">Your attendance record. It fills in from what you submit — you can't edit it here.</div>
+              </div>
+              <div style="display:flex;align-items:center;gap:8px">
+                <button class="btn btn-ghost btn-sm" onclick="shiftMyMonth(-1)">‹</button>
+                <div id="myRegMonthLabel" style="font-weight:700;min-width:130px;text-align:center">—</div>
+                <button class="btn btn-ghost btn-sm" onclick="shiftMyMonth(1)">›</button>
+              </div>
+            </div>
+            <div class="cal-weekdays" id="myRegWeekdays"></div>
+            <div class="cal-grid" id="myRegGrid"></div>
+            <div id="myRegLegend" style="display:flex;flex-wrap:wrap;gap:10px;margin-top:14px"></div>
+          </div>
+        </div>
+
+        <div>
+          <div class="card mb-16">
+            <div style="font-weight:700;font-size:14px;margin-bottom:12px">This month</div>
+            <div id="myRegCounts"></div>
+          </div>
+          <div class="card mb-16" style="border-left:3px solid var(--primary)">
+            <div style="font-weight:700;font-size:14px;margin-bottom:12px">💰 Deposit</div>
+            <div id="myRegDeposit"></div>
+          </div>
+          <div class="card">
+            <div style="font-weight:700;font-size:14px;margin-bottom:12px">🎟️ Allowance left</div>
+            <div id="myRegAllowance"></div>
+          </div>
+        </div>
       </div>
     </div>
 

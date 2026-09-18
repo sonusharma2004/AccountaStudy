@@ -256,6 +256,44 @@ def main() -> int:
     check("the leave is handed back", after["user"]["leavesRemaining"] == 3,
           str(after["user"]["leavesRemaining"]))
 
+    print("\nEach student gets their own read-only register")
+    status, mine = request("GET", "/api/submission/my-register", token=token_b)
+    check("a student can load their own register", status == 200, f"got {status}")
+    check("it covers the whole month", len(mine.get("days", [])) in (28, 29, 30, 31))
+    check("it starts the grid on the right weekday",
+          isinstance(mine.get("firstWeekday"), int) and 0 <= mine["firstWeekday"] <= 6,
+          str(mine.get("firstWeekday")))
+    check("it shows today's Grand Test", mine.get("cells", {}).get(today, {}).get("status") == "gt",
+          str(mine.get("cells", {}).get(today)))
+    check("the month tally counts it", mine.get("counts", {}).get("gt") == 1, str(mine.get("counts")))
+    check("it reports the deposit", "deposit" in mine)
+    check("it reports the leave quota", mine.get("leavesRemaining") == 3)
+    check("it reports what fines cost", mine.get("fineAmount") == 100)
+    check("with no fines, nothing is deducted", mine.get("deductedThisMonth") == 0,
+          str(mine.get("deductedThisMonth")))
+
+    # Student A was fined by the admin earlier and has a ₹500 deposit.
+    status, fined = request("GET", "/api/submission/my-register", token=token_a)
+    check("a fined student sees the fine", fined.get("counts", {}).get("fine") == 1,
+          str(fined.get("counts")))
+    check("and sees what it cost them", fined.get("deductedThisMonth") == 100,
+          str(fined.get("deductedThisMonth")))
+
+    status, other = request("GET", "/api/submission/my-register?month=2026-01", token=token_b)
+    check("an empty month comes back clean", status == 200 and other.get("cells") == {},
+          str(other.get("cells"))[:80])
+    status, _ = request("GET", "/api/submission/my-register?month=rubbish", token=token_b)
+    check("a malformed month is rejected", status == 400, f"got {status}")
+
+    check("the register is read-only: there is no student write route",
+          request("POST", "/api/submission/my-register", token=token_b)[0] in (404, 405),
+          str(request("POST", "/api/submission/my-register", token=token_b)[0]))
+
+    status, leaked = request("GET", "/api/submission/my-register", token=token_b)
+    ids = json.dumps(leaked)
+    check("one student's register never contains another student",
+          f"reg{stamp}a" not in ids and f"reg{stamp}c" not in ids)
+
     print("\nGuards on marking")
     status, _ = request("POST", "/api/admin/register/mark", token=admin_token,
                         body={"userId": uid_a, "date": today, "status": "nonsense"})

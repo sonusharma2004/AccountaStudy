@@ -205,6 +205,7 @@ async function loginUser(user){
     document.getElementById('nav-admin-users').style.display='flex';
     document.getElementById('submitBtn').style.display='none';
     document.getElementById('nav-submit').style.display='none';
+    document.getElementById('nav-my-register').style.display='none';
   }
   await Promise.all([fetchSubmissions(), fetchSessions(), fetchSubmitGate()]);
   fetchLeaderboard();
@@ -321,6 +322,7 @@ function nav(page){
   if(page==='admin-verify'){fetchSubmissions().then(renderAdminSubmissions);}
   if(page==='admin-users'){fetchAdminUsers().then(()=>{renderPendingApprovals();renderAdminUsers();});}
   if(page==='admin-register'){loadRegister();}
+  if(page==='my-register'){loadMyRegister();}
   if(page==='submit'){S.forceFormOpen=false;renderTodaySub();renderSubmitAllowance();refreshSubmitPage();}
   else {stopGateTicker();}
 }
@@ -716,6 +718,7 @@ async function submitProof() {
       renderSubmitAllowance();
       S.forceFormOpen = false;
       await refreshSubmitPage();
+      if(S.myRegister) loadMyRegister();
     } catch(err){ console.error(err); alert("Submission error"); }
     return;
   }
@@ -755,6 +758,7 @@ async function submitProof() {
     if(type==='halfday'){ await refreshUserProfile(); renderSubmitAllowance(); }
     S.forceFormOpen = false;
     await refreshSubmitPage();
+    if(S.myRegister) loadMyRegister();
   } catch (err) {
     console.error(err);
     alert("Upload error");
@@ -1551,6 +1555,91 @@ async function saveVerification(){
   fetchAdminUsers().then(()=>{renderPendingApprovals();renderAdminUsers();});
   if(S.register) loadRegister();
   toast(`Status set to "${S.verifyStatus}" for ${student?.name?.split(' ')[0]||'student'}`,'success');
+}
+
+// ===================== STUDENT'S OWN REGISTER =====================
+// Read only by design: the only way a day changes is by submitting proof.
+S.myRegister = null;
+S.myRegMonth = null;
+
+function shiftMyMonth(delta){
+  const [y,m]=(S.myRegMonth||todayStr().slice(0,7)).split('-').map(Number);
+  const d=new Date(y, m-1+delta, 1);
+  S.myRegMonth=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+  loadMyRegister();
+}
+
+async function loadMyRegister(){
+  if(!S.user || S.user.role==='admin') return;
+  const month=S.myRegMonth||todayStr().slice(0,7);
+  S.myRegMonth=month;
+  try{
+    const res=await fetch(`${API_URL}/submission/my-register?month=${month}`,{headers:{...authHeader()}});
+    if(!res.ok){ toast('Could not load your register','error'); return; }
+    S.myRegister=await res.json();
+    renderMyRegister();
+  }catch(err){
+    console.error('My register failed:',err);
+    toast('Could not load your register','error');
+  }
+}
+
+function renderMyRegister(){
+  const data=S.myRegister;
+  if(!data) return;
+  document.getElementById('myRegMonthLabel').textContent=monthLabel(data.month);
+  document.getElementById('myRegWeekdays').innerHTML=
+    ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map(d=>`<div>${d}</div>`).join('');
+
+  const cells=[];
+  for(let i=0;i<data.firstWeekday;i++) cells.push('<div class="cal-cell empty"></div>');
+  data.days.forEach(d=>{
+    const cell=data.cells[d];
+    const meta=cell?REG_STATUS[cell.status]:null;
+    const classes=['cal-cell'];
+    if(meta) classes.push('cal-'+cell.status);
+    if(d===data.today) classes.push('today');
+    if(d>data.today) classes.push('future');
+    if(cell?.isLate) classes.push('cal-late');
+    const tip=cell
+      ? `${meta?meta.full:cell.status}${cell.isLate?' · submitted late':''}${cell.hours?` · ${cell.hours}h`:''}${cell.adminNotes?` · "${cell.adminNotes}"`:''}`
+      : (d>data.today?'Not yet':'Nothing recorded');
+    cells.push(`<div class="${classes.join(' ')}" title="${tip}">
+      <span class="cal-date">${Number(d.slice(8,10))}</span>
+      ${meta?`<span class="cal-mark">${meta.label}</span>`:''}
+    </div>`);
+  });
+  document.getElementById('myRegGrid').innerHTML=cells.join('');
+
+  document.getElementById('myRegLegend').innerHTML=Object.entries(REG_STATUS).map(([,v])=>
+    `<span class="rg-legend-item"><span class="rg-legend-swatch" style="background:${v.swatch}"></span>${v.full}</span>`
+  ).join('');
+
+  const order=['completed','gt','halfday','leave','emergency','fine','pending'];
+  const rows=order.filter(s=>data.counts[s]).map(s=>{
+    const m=REG_STATUS[s];
+    return `<div class="cal-count-row">
+      <span style="display:flex;align-items:center;gap:8px"><span class="rg-legend-swatch" style="background:${m.swatch}"></span>${m.full}</span>
+      <strong>${data.counts[s]}</strong></div>`;
+  }).join('');
+  document.getElementById('myRegCounts').innerHTML=
+    rows || '<div style="color:var(--text3);font-size:13px;text-align:center;padding:10px 0">Nothing recorded this month yet.</div>';
+
+  const low=data.deposit<=0;
+  document.getElementById('myRegDeposit').innerHTML=`
+    <div style="font-family:var(--display);font-size:28px;font-weight:800;color:${low?'#DC2626':'var(--text)'}">₹${data.deposit}</div>
+    <div style="font-size:12.5px;color:var(--text2);margin-top:6px">
+      ${data.finesThisMonth
+        ? `${data.finesThisMonth} fine${data.finesThisMonth>1?'s':''} this month · <strong style="color:#DC2626">−₹${data.deductedThisMonth}</strong>`
+        : 'No fines this month 🎉'}
+    </div>
+    <div style="font-size:11.5px;color:var(--text3);margin-top:6px">Each fine costs ₹${data.fineAmount}.</div>`;
+
+  document.getElementById('myRegAllowance').innerHTML=`
+    <div class="cal-count-row"><span>🏖️ Leaves left</span><strong>${data.leavesRemaining}</strong></div>
+    <div class="cal-count-row"><span>🟡 Half days left</span><strong>${data.halfDaysRemaining}</strong></div>
+    <div class="cal-count-row"><span>🔥 Current streak</span><strong>${data.streak}</strong></div>
+    <div style="font-size:11.5px;color:var(--text3);margin-top:8px">Emergency leave doesn't use your 3 leaves. Quotas reset on the 1st.</div>`;
 }
 
 // ===================== MONTHLY REGISTER =====================

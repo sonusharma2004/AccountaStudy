@@ -1,6 +1,7 @@
 """Daily proof submission and admin verification endpoints."""
+import calendar
 import uuid
-from datetime import time
+from datetime import date, time
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
@@ -436,6 +437,73 @@ def get_today_status(user: User = Depends(get_current_user), db: Session = Depen
         "timerScreenshot": payload["timerScreenshot"],
         "questionScreenshot": payload["questionScreenshot"],
         **gate,
+    }
+
+
+@router.get("/api/submission/my-register")
+@router.get("/api/submissions/my-register")
+def my_register(
+    month: str | None = None,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """One student's own month, read only.
+
+    Deliberately has no counterpart that writes: a student can change a day only
+    by submitting proof through the form, never by editing the register.
+    """
+    month = month or local_now().strftime("%Y-%m")
+    try:
+        year, mon = (int(part) for part in month.split("-"))
+        days_in_month = calendar.monthrange(year, mon)[1]
+    except (ValueError, TypeError, calendar.IllegalMonthError):
+        raise HTTPException(400, "Month must look like 2026-09.")
+
+    days = [date(year, mon, d).strftime("%Y-%m-%d") for d in range(1, days_in_month + 1)]
+
+    rows = db.scalars(
+        select(Submission).where(
+            Submission.user_id == user.id,
+            Submission.date >= days[0],
+            Submission.date <= days[-1],
+        )
+    ).all()
+
+    cells = {
+        sub.date: {
+            "status": sub.status,
+            "submissionType": sub.submission_type,
+            "hours": sub.hours_studied,
+            "subject": sub.subject,
+            "isLate": sub.is_late,
+            "isVerified": sub.is_verified,
+            "adminNotes": sub.admin_notes,
+            "markedByAdmin": sub.marked_by_admin,
+        }
+        for sub in rows
+    }
+
+    counts: dict[str, int] = {}
+    for cell in cells.values():
+        counts[cell["status"]] = counts.get(cell["status"], 0) + 1
+
+    return {
+        "success": True,
+        "month": month,
+        "days": days,
+        "today": today_str(),
+        # Sunday-start weekday index of the 1st, so the page can pad the grid.
+        "firstWeekday": (date(year, mon, 1).weekday() + 1) % 7,
+        "cells": cells,
+        "counts": counts,
+        "fineAmount": settings.fine_amount,
+        "finesThisMonth": counts.get("fine", 0),
+        "deductedThisMonth": counts.get("fine", 0) * settings.fine_amount,
+        "deposit": user.deposit,
+        "leavesRemaining": user.leaves_remaining,
+        "halfDaysRemaining": user.half_days_remaining,
+        "streak": user.streak,
+        "points": user.points,
     }
 
 

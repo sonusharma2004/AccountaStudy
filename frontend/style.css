@@ -318,3 +318,33 @@ body.focus-mode #focus-quote{display:block}
 .rg-legend-swatch{width:16px;height:16px;border-radius:4px;display:inline-block}
 .cell-menu-item{display:flex;align-items:center;gap:9px;padding:8px 10px;border-radius:8px;cursor:pointer;font-size:13px;color:var(--text)}
 .cell-menu-item:hover{background:var(--bg)}
+
+/* ===================== STUDENT CALENDAR REGISTER ===================== */
+.cal-weekdays{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-bottom:6px}
+.cal-weekdays div{text-align:center;font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
+.cal-cell{aspect-ratio:1;border-radius:10px;border:1px solid var(--border);display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:2px;background:#fff;min-height:54px}
+.cal-cell.empty{border:none;background:transparent}
+.cal-cell.future{opacity:.35}
+.cal-cell.today{box-shadow:0 0 0 2px var(--primary)}
+.cal-date{font-size:11px;font-weight:700;color:var(--text3)}
+.cal-mark{font-size:15px;font-weight:800;line-height:1}
+.cal-completed{background:#DCFCE7;border-color:#BBF7D0}
+.cal-completed .cal-date{color:#15803D}
+.cal-gt{background:#166534;border-color:#166534}
+.cal-gt .cal-date,.cal-gt .cal-mark{color:#fff}
+.cal-halfday{background:#F3E8FF;border-color:#E9D5FF}
+.cal-halfday .cal-date{color:#7E22CE}
+.cal-leave{background:#374151;border-color:#374151}
+.cal-leave .cal-date,.cal-leave .cal-mark{color:#fff}
+.cal-emergency{background:#1D4ED8;border-color:#1D4ED8}
+.cal-emergency .cal-date,.cal-emergency .cal-mark{color:#fff}
+.cal-fine{background:#DC2626;border-color:#DC2626}
+.cal-fine .cal-date,.cal-fine .cal-mark{color:#fff}
+.cal-pending{background:#DBEAFE;border-color:#BFDBFE}
+.cal-pending .cal-date{color:#1D4ED8}
+.cal-late::after{content:'';position:absolute;top:4px;right:4px;width:6px;height:6px;border-radius:50%;background:#DC2626}
+.cal-cell{position:relative}
+.cal-count-row{display:flex;align-items:center;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border);font-size:13px}
+.cal-count-row:last-child{border-bottom:none}

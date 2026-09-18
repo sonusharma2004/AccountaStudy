@@ -228,6 +228,7 @@ Open: [http://localhost:5500](http://localhost:5500)
 | GET | /api/auth/me | Get current user profile |
 | POST | /api/submission/upload | Submit daily proof (with screenshots); 423 when the window or the two-a-day cap blocks it |
 | GET | /api/submission/today-status | Today's proof plus the window countdown and attempts left |
+| GET | /api/submission/my-register | The student's own month as a calendar, read only |
 | GET | /api/submission/my | Student's own submissions |
 | GET | /api/submission/all | All submissions (admin only) |
 | POST | /api/submission/verify | Verify submission (admin only) |
