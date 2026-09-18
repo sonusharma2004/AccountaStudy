@@ -15,7 +15,7 @@ from sqlalchemy.orm import Session, selectinload
 
 from app.config import settings
 from app.database import get_db
-from app.models import Submission, User
+from app.models import STATUSES, Submission, User
 from app.routers.submission import VERIFIABLE_STATUSES, apply_status_change
 from app.security import hash_password, require_admin
 from app.serializers import iso, local_now, today_str
@@ -118,10 +118,11 @@ def toggle_user_status(user_id: str, db: Session = Depends(get_db)):
 @router.get("/stats")
 def get_system_stats(db: Session = Depends(get_db)):
     today = today_str()
+    month_start = today[:8] + "01"
 
-    total_students = db.scalar(
-        select(func.count()).select_from(User).where(User.role == "student", User.is_active.is_(True))
-    )
+    roster = User.role == "student", User.is_approved.is_(True)
+
+    total_students = db.scalar(select(func.count()).select_from(User).where(*roster))
     total_submissions = db.scalar(select(func.count()).select_from(Submission))
     today_submissions = db.scalar(
         select(func.count()).select_from(Submission).where(Submission.date == today)
@@ -130,10 +131,21 @@ def get_system_stats(db: Session = Depends(get_db)):
         select(func.count()).select_from(Submission).where(Submission.status == "pending")
     )
     total_hours = db.scalar(
-        select(func.coalesce(func.sum(User.total_study_hours), 0.0)).where(User.role == "student")
+        select(func.coalesce(func.sum(User.total_study_hours), 0.0)).where(*roster)
     )
+    awaiting_approval = db.scalar(
+        select(func.count())
+        .select_from(User)
+        .where(User.role == "student", User.is_approved.is_(False))
+    )
+    fines_this_month = db.scalar(
+        select(func.count())
+        .select_from(Submission)
+        .where(Submission.status == "fine", Submission.date >= month_start)
+    )
+    deposit_held = db.scalar(select(func.coalesce(func.sum(User.deposit), 0)).where(*roster))
 
-    breakdown = {"completed": 0, "halfday": 0, "leave": 0, "fine": 0, "pending": 0}
+    breakdown = {s: 0 for s in STATUSES}
     rows = db.execute(
         select(Submission.status, func.count())
         .where(Submission.date == today)
@@ -148,7 +160,12 @@ def get_system_stats(db: Session = Depends(get_db)):
             "totalStudents": total_students or 0,
             "totalSubmissions": total_submissions or 0,
             "todaySubmissions": today_submissions or 0,
+            # Anyone on the roster with nothing filed for today yet.
+            "notSubmittedToday": max(0, (total_students or 0) - (today_submissions or 0)),
             "pendingVerifications": pending or 0,
+            "awaitingApproval": awaiting_approval or 0,
+            "finesThisMonth": fines_this_month or 0,
+            "depositHeld": int(deposit_held or 0),
             "totalStudyHours": round(float(total_hours or 0), 2),
             "today": breakdown,
         },

@@ -294,6 +294,26 @@ def main() -> int:
     check("one student's register never contains another student",
           f"reg{stamp}a" not in ids and f"reg{stamp}c" not in ids)
 
+    print("\nThe admin dashboard reports the cohort, not a personal record")
+    status, stats = request("GET", "/api/admin/stats", token=admin_token)
+    s = stats.get("stats", {})
+    check("stats load", status == 200, f"got {status}")
+    check("it counts the roster", s.get("totalStudents", 0) >= 5, str(s.get("totalStudents")))
+    check("it counts today's submissions", s.get("todaySubmissions", 0) >= 1,
+          str(s.get("todaySubmissions")))
+    check("it works out who has not submitted",
+          s.get("notSubmittedToday") == max(0, s["totalStudents"] - s["todaySubmissions"]),
+          f"{s.get('notSubmittedToday')} from {s.get('totalStudents')}/{s.get('todaySubmissions')}")
+    check("it counts fines this month", s.get("finesThisMonth", 0) >= 1,
+          str(s.get("finesThisMonth")))
+    check("it totals the deposits held", s.get("depositHeld") == 500, str(s.get("depositHeld")))
+    check("it reports who is waiting for approval", "awaitingApproval" in s)
+    check("today's breakdown knows about Grand Test", "gt" in s.get("today", {}), str(s.get("today")))
+    check("today's breakdown knows about emergency leave",
+          "emergency" in s.get("today", {}), str(s.get("today")))
+    check("the Grand Test shows in today's breakdown", s["today"].get("gt") == 1,
+          str(s.get("today")))
+
     print("\nGuards on marking")
     status, _ = request("POST", "/api/admin/register/mark", token=admin_token,
                         body={"userId": uid_a, "date": today, "status": "nonsense"})

@@ -333,6 +333,7 @@ function nav(page){
   if(page==='admin-users'){fetchAdminUsers().then(()=>{renderPendingApprovals();renderAdminUsers();});}
   if(page==='admin-register'){loadRegister();}
   if(page==='my-register'){loadMyRegister();}
+  if(page==='dashboard'){renderDashboard();}
   if(page==='submit'){S.forceFormOpen=false;renderTodaySub();renderSubmitAllowance();refreshSubmitPage();}
   else {stopGateTicker();}
 }
@@ -358,9 +359,64 @@ function getTodayStudySeconds(){
   }).reduce((a,s)=>a+(s.duration||0), 0);
 }
 
+// The admin dashboard answers "what needs me right now?", not "how did I do?".
+async function renderAdminDashboard(){
+  if(S.user?.role!=='admin') return;
+  document.getElementById('adminDash').style.display='';
+  document.getElementById('studentDash').style.display='none';
+  const banner=document.getElementById('dashBanner');
+  if(banner) banner.innerHTML='';
+
+  try{
+    const res=await fetch(`${API_URL}/admin/stats`,{headers:{...authHeader()}});
+    if(!res.ok) return;
+    const s=(await res.json()).stats||{};
+
+    document.getElementById('aSubmitted').textContent=s.todaySubmissions??0;
+    document.getElementById('aSubmittedSub').textContent=`of ${s.totalStudents??0} students`;
+    document.getElementById('aPending').textContent=s.pendingVerifications??0;
+    document.getElementById('aMissing').textContent=s.notSubmittedToday??0;
+    document.getElementById('aDeposit').textContent=`₹${s.depositHeld??0}`;
+    document.getElementById('aFines').textContent=
+      s.finesThisMonth ? `${s.finesThisMonth} fine${s.finesThisMonth>1?'s':''} this month` : 'No fines this month';
+
+    const today=s.today||{};
+    const order=['completed','gt','halfday','leave','emergency','fine','pending'];
+    const shown=order.filter(k=>today[k]>0);
+    document.getElementById('aBreakdown').innerHTML = shown.length
+      ? shown.map(k=>{
+          const m=REG_STATUS[k];
+          return `<div class="cal-count-row">
+            <span style="display:flex;align-items:center;gap:8px"><span class="rg-legend-swatch" style="background:${m.swatch}"></span>${m.full}</span>
+            <strong>${today[k]}</strong></div>`;
+        }).join('')
+      : '<div style="color:var(--text3);font-size:13px;text-align:center;padding:16px 0">Nothing submitted yet today.</div>';
+  }catch(err){
+    console.error('Admin stats failed:',err);
+  }
+
+  // The roster endpoint already reports each student's status for today.
+  if(!S.adminUsers?.length) await fetchAdminUsers();
+  const missing=(S.adminUsers||[]).filter(u=>!u.todayStatus?.status);
+  document.getElementById('aMissingCount').textContent=missing.length;
+  document.getElementById('aMissingList').innerHTML = missing.length
+    ? missing.map(u=>`<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border)">
+        <div style="width:28px;height:28px;border-radius:7px;background:#94A3B8;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff">${u.avatar||'?'}</div>
+        <div style="flex:1;min-width:0">
+          <div style="font-weight:600;font-size:13px;color:var(--text)">${u.name}</div>
+          <div style="font-size:11.5px;color:var(--text3);word-break:break-all">${u.email||''}</div>
+        </div></div>`).join('')
+    : '<div style="color:var(--success-dark);font-size:13px;text-align:center;padding:16px 0">Everyone has submitted. 🎉</div>';
+}
+
 function renderDashboard(){
   const u=S.user;
-  if(!u||u.role==='admin') return;
+  if(u?.role==='admin'){ renderAdminDashboard(); return; }
+  const sd=document.getElementById('studentDash');
+  const ad=document.getElementById('adminDash');
+  if(sd) sd.style.display='';
+  if(ad) ad.style.display='none';
+  if(!u) return;
   const todaySecs = getTodayStudySeconds();
   document.getElementById('dToday').textContent = todaySecs > 0 ? fmtDur(todaySecs) : '0m';
   document.getElementById('dStreak').textContent=(u.streak||0)+' days';
@@ -378,7 +434,9 @@ function renderDashboard(){
   const dhEl=document.getElementById('dashHalfLeft'); if(dhEl) dhEl.textContent=hr;
   const banner=document.getElementById('dashBanner');
   if(!todaySub||todaySub.status==='pending'){
-    banner.innerHTML='<div class="deadline-banner active"><span style="font-size:18px">📸</span><div style="flex:1"><div style="font-weight:700;font-size:13.5px;color:var(--warning-dark)">Don\'t forget your daily proof submission!</div><div style="font-size:12.5px;color:var(--text2)">Submit between 6 PM – 7:30 PM with screenshots of your timer and questions solved.</div></div><button class="btn btn-sm" style="background:var(--warning);color:#fff;border:none;flex-shrink:0" onclick="nav(\'submit\')">Submit Now →</button></div>';
+    const w=S.gate?.window;
+    const when=w ? `Submit between ${w.opensAt} and ${w.closesAt}` : 'Submit before the deadline';
+    banner.innerHTML=`<div class="deadline-banner active"><span style="font-size:18px">📸</span><div style="flex:1"><div style="font-weight:700;font-size:13.5px;color:var(--warning-dark)">Don't forget your daily proof submission!</div><div style="font-size:12.5px;color:var(--text2)">${when} with screenshots of your timer and questions solved.</div></div><button class="btn btn-sm" style="background:var(--warning);color:#fff;border:none;flex-shrink:0" onclick="nav('submit')">Submit Now →</button></div>`;
     document.getElementById('submitBadge').style.display='flex';
   } else {
     banner.innerHTML='<div class="deadline-banner done"><span style="font-size:18px">✅</span><div><div style="font-weight:700;font-size:13.5px;color:var(--success-dark)">Today\'s proof submitted successfully!</div><div style="font-size:12.5px;color:var(--text2)">Submitted at '+fmtTime(todaySub)+'  ·  Status: '+renderStatusBadge(todaySub.status)+'</div></div></div>';
@@ -2044,6 +2102,9 @@ async function exportCsv(kind){
 
 // ===================== CHARTS =====================
 function initCharts(){
+  // These plot the signed-in student's own hours, so there is nothing to draw
+  // for an admin and the canvases are hidden anyway.
+  if(S.user?.role==='admin') return;
   // Safe to call again after new data arrives; Chart.js refuses to reuse a canvas.
   Object.values(S.charts||{}).forEach(c=>{ try{ c.destroy(); }catch{} });
   S.charts={};

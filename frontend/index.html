@@ -186,6 +186,52 @@
     <!-- DASHBOARD -->
     <div class="page active" id="page-dashboard">
       <div id="dashBanner" class="mb-20"></div>
+
+      <!-- What the admin sees instead: the cohort, not a personal record. -->
+      <div id="adminDash" style="display:none">
+        <div class="grid g4 mb-16">
+          <div class="stat-card" style="cursor:pointer" onclick="nav('admin-register')">
+            <div class="stat-icon-wrap" style="background:#EFF6FF"><span style="font-size:20px">📥</span></div>
+            <div class="stat-label">Submitted today</div>
+            <div class="stat-val" id="aSubmitted">—</div>
+            <div class="stat-sub" id="aSubmittedSub" style="color:var(--primary)">of the roster</div>
+          </div>
+          <div class="stat-card" style="cursor:pointer" onclick="nav('admin-verify')">
+            <div class="stat-icon-wrap" style="background:#FFFBEB"><span style="font-size:20px">⏳</span></div>
+            <div class="stat-label">Awaiting your review</div>
+            <div class="stat-val" id="aPending">—</div>
+            <div class="stat-sub" style="color:var(--warning-dark)">Click to verify</div>
+          </div>
+          <div class="stat-card" style="cursor:pointer" onclick="nav('admin-register')">
+            <div class="stat-icon-wrap" style="background:#FEF2F2"><span style="font-size:20px">🚫</span></div>
+            <div class="stat-label">Nothing submitted yet</div>
+            <div class="stat-val" id="aMissing">—</div>
+            <div class="stat-sub" style="color:var(--error-dark)">Mark them in the register</div>
+          </div>
+          <div class="stat-card" style="cursor:pointer" onclick="nav('admin-users')">
+            <div class="stat-icon-wrap" style="background:#F0FDF4"><span style="font-size:20px">💰</span></div>
+            <div class="stat-label">Deposits held</div>
+            <div class="stat-val" id="aDeposit">—</div>
+            <div class="stat-sub" id="aFines" style="color:var(--text3)">—</div>
+          </div>
+        </div>
+
+        <div class="grid g2 mb-16">
+          <div class="card">
+            <div class="section-heading">Today at a glance</div>
+            <div id="aBreakdown"></div>
+          </div>
+          <div class="card">
+            <div class="flex-b mb-12">
+              <div class="section-heading" style="margin:0">Still to submit today</div>
+              <span class="pill pill-red" id="aMissingCount">0</span>
+            </div>
+            <div id="aMissingList" style="max-height:260px;overflow:auto"></div>
+          </div>
+        </div>
+      </div>
+
+      <div id="studentDash">
       <div class="grid g4 mb-16">
         <div class="stat-card" style="cursor:pointer" onclick="openStatModal('today')">
           <div class="stat-icon-wrap" style="background:#EFF6FF"><span style="font-size:20px">⏱</span></div>
@@ -238,6 +284,7 @@
           <div id="subHistory"></div>
         </div>
       </div>
+      </div><!-- end studentDash -->
     </div>
 
     <!-- SUBMIT PROOF PAGE -->
