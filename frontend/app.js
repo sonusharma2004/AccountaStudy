@@ -37,6 +37,7 @@ const S = {
   adminFilter:'all',
   timerFiles:{timer:null,quest:null},
   leaderboardData: [],
+  adminUsers: [],
 };
 
 // ===================== AUTH =====================
@@ -202,6 +203,7 @@ async function loginUser(user){
   }
   await Promise.all([fetchSubmissions(), fetchSessions()]);
   fetchLeaderboard();
+  if(user.role==='admin') fetchAdminUsers().then(renderAdminUsers);
   initCharts();
   updatePendingBadge();
   renderDashboard();
@@ -281,7 +283,6 @@ async function fetchLeaderboard() {
     // Backend returns { leaderboard: [...] }
     S.leaderboardData = data.leaderboard || data.students || data.users || (Array.isArray(data) ? data : []);
     renderLb();
-    renderAdminUsers();
   } catch (err) {
     console.error("Failed to fetch leaderboard:", err);
   }
@@ -313,6 +314,7 @@ function nav(page){
   if(page==='leaderboard'){fetchLeaderboard().then(()=>setTimeout(animateLbBars,80));}
   if(page==='analytics'){buildActGrid();initCharts();}
   if(page==='admin-verify'){fetchSubmissions().then(renderAdminSubmissions);}
+  if(page==='admin-users'){fetchAdminUsers().then(renderAdminUsers);}
   if(page==='submit'){renderTodaySub();updateSubWindowBanner();renderSubmitAllowance();}
 }
 
@@ -1338,34 +1340,49 @@ async function saveVerification(){
   renderLb();
   renderDashboard();
   renderTodaySub();
-  renderAdminUsers();
+  // Verification changes streaks, points and today's status, so pull fresh rows.
+  fetchAdminUsers().then(renderAdminUsers);
   toast(`Status set to "${S.verifyStatus}" for ${student?.name?.split(' ')[0]||'student'}`,'success');
 }
 
+// The leaderboard only lists students with verified study this week, so the
+// roster comes from the admin endpoint instead — otherwise a student who has
+// just registered would be invisible here and could not be managed.
+async function fetchAdminUsers(){
+  if(S.user?.role!=='admin') return;
+  try{
+    const res=await fetch(`${API_URL}/admin/users`,{headers:{...authHeader()}});
+    if(!res.ok) return;
+    const data=await res.json();
+    S.adminUsers=data.users||[];
+  }catch(err){
+    console.error('Failed to fetch students:',err);
+  }
+}
+
 function renderAdminUsers(){
-  const students=(S.leaderboardData||[]).filter(u=>u.role==='student'||!u.role).sort((a,b)=>(b.totalHours||b.hrs||0)-(a.totalHours||a.hrs||0));
+  const tbody=document.getElementById('adminUsersTbody');
+  if(!tbody) return;
+  const students=S.adminUsers||[];
   if(!students.length){
-    document.getElementById('adminUsersTbody').innerHTML='<tr><td colspan="8" style="text-align:center;color:var(--text3);padding:20px">Loading students…</td></tr>';
+    tbody.innerHTML='<tr><td colspan="8" style="text-align:center;color:var(--text3);padding:20px">No students yet. Share your join code, or use “+ Add Student”.</td></tr>';
     return;
   }
-  document.getElementById('adminUsersTbody').innerHTML=students.map((u)=>{
-    const uid=u._id||u.id||u.userId;
+  tbody.innerHTML=students.map((u)=>{
+    const uid=u.id;
     const avatar=u.avatar||(u.name?u.name[0].toUpperCase():'?');
-    const color=u.color||'#3B82F6';
-    const lastSub=S.submissions.filter(s=>{
-      const subUid=s.userId?._id||s.userId;
-      return subUid===uid||subUid===String(uid);
-    }).sort((a,b)=>b.date.localeCompare(a.date))[0];
-    return `<tr>
-      <td><div style="display:flex;align-items:center;gap:10px"><div style="width:32px;height:32px;border-radius:8px;background:${color};display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px;color:#fff">${avatar}</div><span style="font-weight:600;color:var(--text)">${u.name}</span></div></td>
+    const today=u.todayStatus?.status;
+    const safeName=(u.name||'').replace(/'/g,"\\'");
+    return `<tr${u.isActive===false?' style="opacity:.55"':''}>
+      <td><div style="display:flex;align-items:center;gap:10px"><div style="width:32px;height:32px;border-radius:8px;background:#3B82F6;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px;color:#fff">${avatar}</div><span style="font-weight:600;color:var(--text)">${u.name}</span></div></td>
       <td style="font-size:13px">${u.email||'—'}</td>
-      <td style="font-family:var(--display);font-weight:600">${fmtHours(u.totalHours||u.hrs||0)}</td>
+      <td style="font-family:var(--display);font-weight:600">${fmtHours(u.totalStudyHours||0)}</td>
       <td><span style="color:var(--warning);font-weight:600">🔥 ${u.streak||0}d</span></td>
-      <td><span style="color:var(--success-dark);font-weight:600">${u.totalCompleted ?? u.completed ?? u.completedCount ?? 0}</span></td>
-      <td><span style="color:var(--error);font-weight:600">${u.totalFines ?? u.fines ?? 0}</span></td>
-      <td>${lastSub?renderStatusBadge(lastSub.status):'<span class="pill pill-gray">No data</span>'}</td>
+      <td><span style="color:var(--success-dark);font-weight:600">${u.totalCompleted||0}</span></td>
+      <td><span style="color:var(--error);font-weight:600">${u.totalFines||0}</span></td>
+      <td>${today&&today!=='none'?renderStatusBadge(today):'<span class="pill pill-gray">Not submitted</span>'}</td>
       <td style="white-space:nowrap">
-        <button class="btn btn-secondary btn-sm" onclick="resetStudentPassword('${uid}','${(u.name||'').replace(/'/g,"\\'")}')">Reset Password</button>
+        <button class="btn btn-secondary btn-sm" onclick="resetStudentPassword('${uid}','${safeName}')">Reset Password</button>
         <button class="btn btn-danger btn-sm" onclick="removeUser('${uid}')">Remove</button>
       </td>
     </tr>`;
@@ -1384,6 +1401,7 @@ async function removeUser(id){
     if(!res.ok){ const err=await res.json(); toast(err.message||'Failed to remove student','error'); return; }
   } catch(err){ toast('Network error','error'); return; }
   S.leaderboardData=S.leaderboardData.filter(u=>(u._id||u.id)!==id);
+  S.adminUsers=(S.adminUsers||[]).filter(u=>u.id!==id);
   S.submissions=S.submissions.filter(s=>{const uid=s.userId?._id||s.userId; return uid!==id;});
   renderAdminUsers();
   renderLb();
@@ -1405,7 +1423,8 @@ async function openAddStudent(){
     const data=await res.json();
     if(!res.ok){ toast(data.message||'Could not create student','error'); return; }
     alert(`${data.student.name} is ready.\n\nEmail: ${data.student.email}\nTemporary password: ${data.temporaryPassword}\n\nShare this with them now — it is not shown again.`);
-    await fetchLeaderboard();
+    await fetchAdminUsers();
+    renderAdminUsers();
     toast('Student added','success');
   }catch(err){ toast('Network error','error'); }
 }
