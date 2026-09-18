@@ -148,6 +148,14 @@ PORT=5001
 # to get someone onto the roster.
 JOIN_CODE=ABC123
 
+# Daily proof window, in the timezone below. Before the open time the form is
+# locked; after the close time uploads are accepted but stamped LATE so the
+# admin can see who slipped. Students get two submissions a day: the real one
+# plus one correction, and the correction disappears once you verify them.
+SUBMISSION_OPENS_AT=10:00
+SUBMISSION_CLOSES_AT=22:00
+MAX_DAILY_SUBMISSIONS=2
+
 # Indian Standard Time. Every calendar day boundary is derived from this, so a
 # submission made at 1 AM is still filed against the correct day.
 TIMEZONE_OFFSET_MINUTES=330
@@ -214,7 +222,8 @@ Open: [http://localhost:5500](http://localhost:5500)
 | POST | /api/auth/register | Register new user (requires the join code when one is set; the account then waits for admin approval) |
 | GET | /api/auth/signup-info | Whether a join code is currently required |
 | GET | /api/auth/me | Get current user profile |
-| POST | /api/submission/upload | Submit daily proof (with screenshots) |
+| POST | /api/submission/upload | Submit daily proof (with screenshots); 423 when the window or the two-a-day cap blocks it |
+| GET | /api/submission/today-status | Today's proof plus the window countdown and attempts left |
 | GET | /api/submission/my | Student's own submissions |
 | GET | /api/submission/all | All submissions (admin only) |
 | POST | /api/submission/verify | Verify submission (admin only) |

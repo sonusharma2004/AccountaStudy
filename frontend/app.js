@@ -205,7 +205,7 @@ async function loginUser(user){
     document.getElementById('submitBtn').style.display='none';
     document.getElementById('nav-submit').style.display='none';
   }
-  await Promise.all([fetchSubmissions(), fetchSessions()]);
+  await Promise.all([fetchSubmissions(), fetchSessions(), fetchSubmitGate()]);
   fetchLeaderboard();
   if(user.role==='admin') fetchAdminUsers().then(()=>{renderPendingApprovals();renderAdminUsers();});
   initCharts();
@@ -319,7 +319,8 @@ function nav(page){
   if(page==='analytics'){buildActGrid();initCharts();}
   if(page==='admin-verify'){fetchSubmissions().then(renderAdminSubmissions);}
   if(page==='admin-users'){fetchAdminUsers().then(()=>{renderPendingApprovals();renderAdminUsers();});}
-  if(page==='submit'){renderTodaySub();updateSubWindowBanner();renderSubmitAllowance();}
+  if(page==='submit'){S.forceFormOpen=false;renderTodaySub();renderSubmitAllowance();refreshSubmitPage();}
+  else {stopGateTicker();}
 }
 
 // ===================== DASHBOARD =====================
@@ -684,14 +685,16 @@ async function submitProof() {
         body: formData,
       });
       const data = await res.json();
-      if (!res.ok) { alert(data.message || "Submission failed"); return; }
-      toast("Leave submitted ✅ Awaiting admin approval", "success");
+      if (!res.ok) { await handleSubmitRejection(res, data); return; }
+      toast(data.message || "Form submitted successfully", "success");
       await fetchSubmissions();
       renderTodaySub();
       renderDashboard();
       updatePendingBadge();
       await refreshUserProfile();
       renderSubmitAllowance();
+      S.forceFormOpen = false;
+      await refreshSubmitPage();
     } catch(err){ console.error(err); alert("Submission error"); }
     return;
   }
@@ -716,17 +719,45 @@ async function submitProof() {
       body: formData,
     });
     const data = await readUploadResponse(res);
-    if (!res.ok) { alert(data.message || "Upload failed"); return; }
-    toast("Submitted successfully ✅", "success");
+    if (!res.ok) { await handleSubmitRejection(res, data); return; }
+    toast(data.message || "Form submitted successfully", "success");
+    clearScreenshotPickers();
     await fetchSubmissions();
     renderTodaySub();
     renderDashboard();
     updatePendingBadge();
     if(type==='halfday'){ await refreshUserProfile(); renderSubmitAllowance(); }
+    S.forceFormOpen = false;
+    await refreshSubmitPage();
   } catch (err) {
     console.error(err);
     alert("Upload error");
   }
+}
+
+// 423 means the window or the two-attempt cap stopped it, not bad input, so the
+// page re-reads its state and closes the form rather than leaving it inviting.
+async function handleSubmitRejection(res, data){
+  const message = data?.message || "Submission failed";
+  if (res.status === 423) {
+    toast(message, "error");
+    S.forceFormOpen = false;
+    await refreshSubmitPage();
+    return;
+  }
+  alert(message);
+}
+
+function clearScreenshotPickers(){
+  S.timerFiles = {};
+  ['timer','quest'].forEach(k=>{
+    const preview=document.getElementById(k==='timer'?'timerPreview':'questPreview');
+    const content=document.getElementById(k==='timer'?'timerUploadContent':'questUploadContent');
+    const input=document.getElementById(k==='timer'?'timerFile':'questFile');
+    if(preview){ preview.style.display='none'; preview.src=''; }
+    if(content) content.style.display='';
+    if(input) input.value='';
+  });
 }
 // async function submitProof() {
 //   const timerFile = document.getElementById("timerScreenshot").files[0];
@@ -796,34 +827,168 @@ function renderTodaySub(){
   updateSubWindowBanner();
 }
 
+// ---------- Submission window + attempt gate ----------
+// The server owns the clock and the attempt count. The page mirrors them and
+// only counts seconds locally, so a student cannot unlock the form by changing
+// their device time.
+S.gate = null;
+S.serverSkewMs = 0;
+S.gateTicker = null;
+S.forceFormOpen = false;
+
+async function fetchSubmitGate(){
+  if(!S.user || S.user.role==='admin') return null;
+  try{
+    const res=await fetch(`${API_URL}/submission/today-status`,{headers:{...authHeader()}});
+    if(!res.ok) return null;
+    const data=await res.json();
+    S.gate=data;
+    if(data.window?.serverTime){
+      S.serverSkewMs=Date.parse(data.window.serverTime)-Date.now();
+    }
+    return data;
+  }catch(err){
+    console.error('Could not load submission window:',err);
+    return null;
+  }
+}
+
+function serverNow(){ return new Date(Date.now()+S.serverSkewMs); }
+
+function countdownText(seconds){
+  const s=Math.max(0,Math.floor(seconds));
+  const h=Math.floor(s/3600), m=Math.floor((s%3600)/60), sec=s%60;
+  const pad=n=>String(n).padStart(2,'0');
+  return h>0 ? `${h}h ${pad(m)}m ${pad(sec)}s` : `${m}m ${pad(sec)}s`;
+}
+
+// Seconds left, recomputed from the server's anchor so the number keeps moving
+// between refreshes without drifting.
+function secondsLeft(){
+  const w=S.gate?.window;
+  if(!w) return {state:'open',open:0,close:0};
+  const elapsed=(Date.now()+S.serverSkewMs-Date.parse(w.serverTime))/1000;
+  const untilOpen=w.secondsUntilOpen-elapsed;
+  const untilClose=w.secondsUntilClose-elapsed;
+  let state=w.state;
+  if(state==='before'&&untilOpen<=0) state='open';
+  if(state==='open'&&untilClose<=0) state='late';
+  return {state,open:untilOpen,close:untilClose};
+}
+
+function startGateTicker(){
+  stopGateTicker();
+  S.gateTicker=setInterval(()=>{
+    updateSubWindowBanner();
+    updateDeadlineBanner();
+  },1000);
+}
+function stopGateTicker(){ if(S.gateTicker){ clearInterval(S.gateTicker); S.gateTicker=null; } }
+
 function updateSubWindowBanner(){
   const el=document.getElementById('subWindowBanner');
-  if(!el) return;
-  const now=new Date();
-  const h=now.getHours(),m=now.getMinutes();
-  const isWindow=(h===18&&m>=0)||(h===19&&m<=30);
-  const isPast=(h>19)||(h===19&&m>30);
-  const uid=S.user?._id||S.user?.id;
-  const sub=getTodaySub(uid);
-  if(sub&&sub.status!=='pending'){
-    el.innerHTML=`<div class="deadline-banner done"><span>✅</span><div style="font-size:13px;color:var(--success-dark);font-weight:600">Proof verified — Status: ${renderStatusBadge(sub.status)}</div></div>`;
-  } else if(sub){
-    el.innerHTML=`<div class="deadline-banner done"><span>📤</span><div style="font-size:13px;color:var(--success-dark);font-weight:600">Submitted! Awaiting admin verification.</div></div>`;
-  } else if(isWindow){
-    el.innerHTML=`<div class="deadline-banner active"><span>⏰</span><div style="font-size:13px;color:var(--warning-dark);font-weight:600">Submission window is OPEN (closes 7:30 PM). Submit now!</div></div>`;
-  } else if(isPast){
-    el.innerHTML=`<div class="deadline-banner missed"><span>❌</span><div style="font-size:13px;color:var(--error-dark);font-weight:600">Submission window closed. You will receive a 🔴 Fine.</div></div>`;
+  if(!el||!S.gate) return;
+  const g=S.gate, w=g.window||{};
+  const {state,open,close}=secondsLeft();
+
+  const gw=document.getElementById('guidelineWindow');
+  if(gw&&w.opensAt) gw.textContent=`${w.opensAt} – ${w.closesAt}`;
+
+  if(state==='before'){
+    el.innerHTML=`<div class="deadline-banner active"><span>🔒</span><div style="font-size:13px;color:var(--warning-dark)">
+      Submissions open at <strong>${w.opensAt}</strong> — in <strong>${countdownText(open)}</strong>. Get your screenshots ready.</div></div>`;
+  } else if(state==='open'){
+    const urgent=close<=1800;
+    el.innerHTML=`<div class="deadline-banner ${urgent?'missed':'active'}"><span>${urgent?'⚠️':'⏳'}</span><div style="font-size:13px;color:${urgent?'var(--error-dark)':'var(--warning-dark)'};font-weight:600">
+      Time left to submit: <strong style="font-variant-numeric:tabular-nums">${countdownText(close)}</strong> — closes at ${w.closesAt}</div></div>`;
   } else {
-    el.innerHTML=`<div class="deadline-banner active"><span>📅</span><div style="font-size:13px;color:var(--warning-dark)">Submission window opens at <strong>6:00 PM</strong>. Prepare your screenshots.</div></div>`;
+    el.innerHTML=`<div class="deadline-banner missed"><span>❌</span><div style="font-size:13px;color:var(--error-dark);font-weight:600">
+      Deadline passed at ${w.closesAt}. Anything you send now is marked <strong>LATE</strong> for the admin.</div></div>`;
   }
+}
+
+// Decides whether the student sees the form, a success panel, or a lock notice.
+function renderSubmitGate(){
+  const g=S.gate;
+  const card=document.getElementById('submitFormCard');
+  const panel=document.getElementById('submitLockPanel');
+  if(!g||!card||!panel) return;
+
+  const note=document.getElementById('submitAttemptNote');
+  if(note){
+    note.textContent = g.attemptsLeft>1
+      ? ''
+      : g.attemptsLeft===1 && g.submitted
+        ? 'This is your final submission for today — check both screenshots before sending.'
+        : '';
+  }
+
+  const editing = S.forceFormOpen && g.canSubmit;
+  const showForm = g.canSubmit && (!g.submitted || editing);
+  card.style.display = showForm ? '' : 'none';
+
+  if(showForm && !g.submitted){ panel.style.display='none'; return; }
+
+  panel.style.display='';
+  if(g.submitted){
+    const statusLine = g.isVerified
+      ? `Admin reviewed it: ${renderStatusBadge(g.status)}`
+      : 'Waiting for the admin to review it.';
+    const lateTag = g.isLate
+      ? `<span class="pill pill-red" style="margin-left:8px">LATE</span>` : '';
+    const canFix = g.canSubmit && g.attemptsLeft>0;
+    panel.innerHTML=`<div class="card" style="border-left:3px solid var(--success);text-align:center">
+      <div style="font-size:40px;line-height:1">✅</div>
+      <div style="font-weight:800;font-size:19px;color:var(--success-dark);margin-top:8px">Form submitted successfully${lateTag}</div>
+      <div style="font-size:13.5px;color:var(--text2);margin-top:6px">${statusLine}</div>
+      <div style="display:flex;justify-content:center;gap:24px;margin:18px 0 6px;flex-wrap:wrap">
+        <div><div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.4px">Subject</div>
+             <div style="font-weight:700;color:var(--text)">${g.subject||'—'}</div></div>
+        <div><div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.4px">Hours</div>
+             <div style="font-weight:700;color:var(--text)">${g.hoursStudied??'—'}</div></div>
+        <div><div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.4px">Submissions used</div>
+             <div style="font-weight:700;color:var(--text)">${g.attemptsUsed} of ${g.attemptsAllowed}</div></div>
+      </div>
+      ${canFix
+        ? `<div style="font-size:13px;color:var(--text2);margin-top:12px">Uploaded the wrong screenshot? You can replace it <strong>once</strong>.</div>
+           <button class="btn btn-ghost" style="margin-top:10px" onclick="reopenSubmitForm()">✏️ Replace my submission</button>`
+        : `<div style="font-size:13px;color:var(--text3);margin-top:12px">${g.lockReason||'The form is closed for today.'}</div>`}
+    </div>`;
+  } else {
+    panel.innerHTML=`<div class="card" style="border-left:3px solid var(--warning);text-align:center">
+      <div style="font-size:40px;line-height:1">🔒</div>
+      <div style="font-weight:800;font-size:18px;color:var(--text);margin-top:8px">Form is not open yet</div>
+      <div style="font-size:13.5px;color:var(--text2);margin-top:6px">${g.lockReason||''}</div>
+    </div>`;
+  }
+}
+
+function reopenSubmitForm(){
+  S.forceFormOpen=true;
+  renderSubmitGate();
+  document.getElementById('submitFormCard')?.scrollIntoView({behavior:'smooth',block:'start'});
+  toast('You have one correction left — re-upload both screenshots','info');
+}
+
+async function refreshSubmitPage(){
+  await fetchSubmitGate();
+  renderSubmitGate();
+  updateSubWindowBanner();
+  startGateTicker();
 }
 
 function updateDeadlineBanner(){
   if(!S.user||S.user.role==='admin') return;
-  const h=new Date().getHours();
   const el=document.getElementById('deadlineTag');
-  if(h>=18&&h<20){ el.innerHTML='<span class="pill pill-amber">⏰ Submit before 7:30 PM</span>'; }
-  else { el.innerHTML=''; }
+  if(!el) return;
+  const g=S.gate;
+  if(!g||g.submitted){ el.innerHTML=''; return; }
+  const {state,close}=secondsLeft();
+  if(state==='open'&&close<=3*3600){
+    el.innerHTML=`<span class="pill pill-amber">⏰ ${countdownText(close)} left to submit</span>`;
+  } else if(state==='late'){
+    el.innerHTML='<span class="pill pill-red">⏰ Deadline passed</span>';
+  } else { el.innerHTML=''; }
 }
 
 // ===================== TIMER =====================
@@ -1248,6 +1413,8 @@ function renderAdminSubmissions(){
           <div style="display:flex;gap:8px;margin-bottom:10px">
             <span class="pill pill-blue">${subjectEmoji(sub.subject)} ${sub.subject}</span>
             <span class="pill pill-gray">⏱ ${sub.hours}h</span>
+            ${sub.isLate?'<span class="pill pill-red">⏰ Late</span>':''}
+            ${sub.attemptCount>1?'<span class="pill pill-amber">✏️ Corrected</span>':''}
           </div>
           ${isLeaveSubmission(sub)
             ?`<div style="background:#F0FDF4;border:1px solid #BBF7D0;border-radius:10px;padding:14px;text-align:center;margin-bottom:10px">

@@ -35,6 +35,8 @@ _MIGRATIONS = (
     # Defaults to TRUE so accounts that predate approval keep working; the
     # register endpoint sets FALSE explicitly for anyone new.
     "ALTER TABLE users ADD COLUMN IF NOT EXISTS is_approved BOOLEAN NOT NULL DEFAULT TRUE",
+    "ALTER TABLE submissions ADD COLUMN IF NOT EXISTS attempt_count INTEGER NOT NULL DEFAULT 1",
+    "ALTER TABLE submissions ADD COLUMN IF NOT EXISTS is_late BOOLEAN NOT NULL DEFAULT FALSE",
 )
 
 

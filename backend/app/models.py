@@ -139,6 +139,12 @@ class Submission(Base):
     is_verified: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False, index=True)
     points_awarded: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
 
+    # How many times the student has sent this day's proof. The first upload is
+    # 1; a correction makes it 2, which is the cap.
+    attempt_count: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
+    # Set when the upload arrived after the window closed.
+    is_late: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=utcnow, onupdate=utcnow, nullable=False

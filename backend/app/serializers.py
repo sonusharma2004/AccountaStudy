@@ -92,6 +92,8 @@ def submission_payload(sub: Submission, *, include_student: bool = False) -> dic
         "pointsAwarded": sub.points_awarded,
         "verifiedAt": iso(sub.verified_at),
         "submittedAt": iso(sub.created_at),
+        "attemptCount": sub.attempt_count,
+        "isLate": sub.is_late,
     }
     if include_student:
         student = sub.user

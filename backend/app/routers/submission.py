@@ -1,5 +1,6 @@
 """Daily proof submission and admin verification endpoints."""
 import uuid
+from datetime import time
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
@@ -11,12 +12,83 @@ from app.config import settings
 from app.database import get_db
 from app.models import STATUS_POINTS, SUBJECTS, Screenshot, Submission, User
 from app.security import get_current_user, require_admin
-from app.serializers import submission_payload, today_str
+from app.serializers import iso, local_now, submission_payload, today_str
 
 router = APIRouter(tags=["submission"])
 
 ALLOWED_IMAGE_EXTS = {".jpg", ".jpeg", ".png", ".gif", ".webp"}
 VERIFIABLE_STATUSES = ["completed", "halfday", "leave", "fine"]
+
+
+def _pretty_time(value: time) -> str:
+    """08:00 -> '8:00 AM'. Students read this, not a 24-hour clock."""
+    hour = value.hour % 12 or 12
+    meridiem = "AM" if value.hour < 12 else "PM"
+    return f"{hour}:{value.minute:02d} {meridiem}"
+
+
+def _window_state() -> dict:
+    """Where the clock is relative to today's submission window.
+
+    The countdown the student sees is driven by these numbers rather than their
+    device clock, so changing the phone's time does not buy extra minutes.
+    """
+    now = local_now()
+    opens = now.replace(
+        hour=settings.window_open_time.hour,
+        minute=settings.window_open_time.minute,
+        second=0,
+        microsecond=0,
+    )
+    closes = now.replace(
+        hour=settings.window_close_time.hour,
+        minute=settings.window_close_time.minute,
+        second=0,
+        microsecond=0,
+    )
+
+    if now < opens:
+        state = "before"
+    elif now <= closes:
+        state = "open"
+    else:
+        state = "late"
+
+    return {
+        "state": state,
+        "opensAt": _pretty_time(settings.window_open_time),
+        "closesAt": _pretty_time(settings.window_close_time),
+        "serverTime": iso(now),
+        "secondsUntilOpen": max(0, int((opens - now).total_seconds())),
+        "secondsUntilClose": max(0, int((closes - now).total_seconds())),
+    }
+
+
+def _gate(sub: Submission | None) -> dict:
+    """Whether the form should accept anything right now, and why not."""
+    window = _window_state()
+    allowed = settings.max_daily_submissions
+    used = sub.attempt_count if sub else 0
+
+    if window["state"] == "before":
+        reason = f"The submission form opens at {window['opensAt']}."
+    elif sub and sub.is_verified:
+        reason = "Your proof has already been reviewed by the admin, so it can no longer be changed."
+    elif used >= allowed:
+        reason = (
+            f"You have used both of today's submissions. Ask the admin if you need another change."
+        )
+    else:
+        reason = None
+
+    return {
+        "window": window,
+        "attemptsUsed": used,
+        "attemptsAllowed": allowed,
+        "attemptsLeft": max(0, allowed - used),
+        "canSubmit": reason is None,
+        "lockReason": reason,
+    }
 
 
 class VerifyBody(BaseModel):
@@ -78,8 +150,12 @@ async def _handle_upload(
     existing = db.scalar(
         select(Submission).where(Submission.user_id == user.id, Submission.date == today)
     )
-    if existing and existing.is_verified:
-        raise HTTPException(409, "Already submitted and verified for today. Cannot resubmit.")
+
+    gate = _gate(existing)
+    if not gate["canSubmit"]:
+        # 423 Locked keeps this distinct from a validation error, so the form can
+        # switch itself off instead of just showing a red message.
+        raise HTTPException(423, gate["lockReason"])
 
     sub_type = (submissionType or "full").lower()
     is_leave = sub_type == "leave"
@@ -129,6 +205,8 @@ async def _handle_upload(
             sub.question_screenshot_id = question_shot.id
         sub.status = "pending"
         sub.is_verified = False
+        sub.attempt_count += 1
+        sub.is_late = gate["window"]["state"] == "late"
     else:
         sub = Submission(
             user_id=user.id,
@@ -140,6 +218,8 @@ async def _handle_upload(
             timer_screenshot_id=timer_shot.id if timer_shot else None,
             question_screenshot_id=question_shot.id if question_shot else None,
             status="pending",
+            attempt_count=1,
+            is_late=gate["window"]["state"] == "late",
         )
         db.add(sub)
 
@@ -154,10 +234,19 @@ async def _handle_upload(
     db.commit()
     db.refresh(sub)
 
+    after = _gate(sub)
+    left = after["attemptsLeft"]
+    if left > 0:
+        follow_up = "If you uploaded the wrong screenshot you can replace it once more."
+    else:
+        follow_up = "This was your last submission for today."
+    late_note = " It arrived after the deadline, so it is marked late." if sub.is_late else ""
+
     return {
         "success": True,
-        "message": "Proof submitted successfully! Admin will verify soon.",
+        "message": f"Form submitted successfully!{late_note} {follow_up}",
         "submission": submission_payload(sub),
+        **after,
     }
 
 
@@ -230,8 +319,10 @@ def get_today_status(user: User = Depends(get_current_user), db: Session = Depen
     sub = db.scalar(
         select(Submission).where(Submission.user_id == user.id, Submission.date == today_str())
     )
+    gate = _gate(sub)
+
     if sub is None:
-        return {"success": True, "submitted": False, "status": None}
+        return {"success": True, "submitted": False, "status": None, **gate}
 
     payload = submission_payload(sub)
     return {
@@ -239,11 +330,14 @@ def get_today_status(user: User = Depends(get_current_user), db: Session = Depen
         "submitted": True,
         "status": sub.status,
         "isVerified": sub.is_verified,
+        "isLate": sub.is_late,
         "hoursStudied": sub.hours_studied,
         "subject": sub.subject,
         "adminNotes": sub.admin_notes,
+        "submittedAt": payload["submittedAt"],
         "timerScreenshot": payload["timerScreenshot"],
         "questionScreenshot": payload["questionScreenshot"],
+        **gate,
     }
 
 

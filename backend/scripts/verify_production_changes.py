@@ -257,11 +257,36 @@ def main() -> None:
         f"expected 5, got {total}",
     )
 
-    oversized = png(3000)
     status, data, _ = request(
         "POST",
         "/api/submission/upload",
         token=token,
+        form={
+            "subject": "Physics",
+            "hoursStudied": "2",
+            "submissionType": "fullday",
+            "timerScreenshot": ("timer.png", small, "image/png"),
+            "questionScreenshot": ("q.png", small, "image/png"),
+        },
+    )
+    check("a third submission is locked out", status == 423, f"got {status}")
+
+    # The daily cap is checked before the file is read, so the size limit needs a
+    # student who still has an attempt in hand.
+    oversized = png(3000)
+    _, big_login, _ = request(
+        "POST", "/api/admin/student", token=admin_token,
+        body={"name": "Big Upload", "email": f"big{stamp}@test.dev"},
+    )
+    _, big_session, _ = request(
+        "POST", "/api/auth/login",
+        body={"email": f"big{stamp}@test.dev", "password": big_login.get("temporaryPassword")},
+    )
+    big_token = big_session.get("token")
+    status, data, _ = request(
+        "POST",
+        "/api/submission/upload",
+        token=big_token,
         form={
             "subject": "Physics",
             "hoursStudied": "2",
