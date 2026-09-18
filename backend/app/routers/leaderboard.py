@@ -1,5 +1,5 @@
 """Leaderboard rankings: daily, weekly and overall."""
-from datetime import datetime, timedelta, timezone
+from datetime import timedelta
 
 from fastapi import APIRouter, Depends
 from sqlalchemy import func, select
@@ -8,12 +8,13 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models import Submission, User
 from app.security import get_current_user
+from app.serializers import local_now
 
 router = APIRouter(prefix="/api/leaderboard", tags=["leaderboard"])
 
 
 def _date_range(mode: str) -> tuple[str, str] | None:
-    now = datetime.now(timezone.utc)
+    now = local_now()
     if mode == "daily":
         today = now.strftime("%Y-%m-%d")
         return today, today

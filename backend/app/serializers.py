@@ -5,6 +5,7 @@ hand-built rather than derived from the SQLAlchemy models.
 """
 from datetime import datetime, timezone
 
+from app.config import settings
 from app.models import Submission, User
 
 # Legacy marker path: the frontend treats a screenshot path containing "leave/"
@@ -20,8 +21,27 @@ def iso(value: datetime | None) -> str | None:
     return value.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
 
 
+def local_now() -> datetime:
+    """Current time in the cohort's timezone.
+
+    Every calendar boundary in the app (submission dates, streaks, leaderboard
+    windows) has to agree with the day the student is actually living in. In UTC
+    the day would roll over at 5:30 AM IST and late-night study would be filed
+    against the previous date.
+    """
+    return datetime.now(settings.tz)
+
+
 def today_str() -> str:
-    return datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    return local_now().strftime("%Y-%m-%d")
+
+
+def to_local_date(value: datetime | None) -> str | None:
+    if value is None:
+        return None
+    if value.tzinfo is None:
+        value = value.replace(tzinfo=timezone.utc)
+    return value.astimezone(settings.tz).strftime("%Y-%m-%d")
 
 
 def screenshot_url(submission: Submission, which: str) -> str | None:

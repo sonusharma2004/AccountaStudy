@@ -32,7 +32,12 @@ async def _store_screenshot(db: Session, upload: UploadFile) -> Screenshot:
 
     data = await upload.read()
     if len(data) > settings.max_file_size:
-        raise HTTPException(400, "File too large. Maximum size is 10MB.")
+        limit_mb = settings.max_file_size / (1024 * 1024)
+        raise HTTPException(
+            400,
+            f"That screenshot is {len(data) / (1024 * 1024):.1f}MB, over the {limit_mb:.0f}MB limit. "
+            "Take a screenshot instead of a photo of the screen, or crop it and try again.",
+        )
     if not data:
         raise HTTPException(400, "Uploaded file is empty.")
 
@@ -44,6 +49,19 @@ async def _store_screenshot(db: Session, upload: UploadFile) -> Screenshot:
     db.add(shot)
     db.flush()
     return shot
+
+
+def _discard_screenshot(db: Session, shot_id: uuid.UUID | None) -> None:
+    """Delete an image that is being replaced.
+
+    Nothing else references these rows, so without this the bytes stay in the
+    database forever and count against the storage quota.
+    """
+    if shot_id is None:
+        return
+    shot = db.get(Screenshot, shot_id)
+    if shot is not None:
+        db.delete(shot)
 
 
 async def _handle_upload(
@@ -71,9 +89,9 @@ async def _handle_upload(
         raise HTTPException(400, "Both timer screenshot and question screenshot are required.")
 
     if is_leave and user.leaves_remaining <= 0:
-        raise HTTPException(400, "No leaves remaining. You have used all 3 leaves.")
+        raise HTTPException(400, "No leaves left this month. Your quota resets on the 1st.")
     if is_half_day and user.half_days_remaining <= 0:
-        raise HTTPException(400, "No half days remaining. You have used all 3 half days.")
+        raise HTTPException(400, "No half days left this month. Your quota resets on the 1st.")
 
     if not subject or hoursStudied in (None, ""):
         raise HTTPException(400, "Subject and hours studied are required.")
@@ -95,15 +113,19 @@ async def _handle_upload(
     question_shot = None if is_leave else await _store_screenshot(db, questionScreenshot)
 
     is_new = existing is None
+    previous_hours = 0.0
     if existing:
         sub = existing
+        previous_hours = sub.hours_studied
         sub.subject = subject
         sub.hours_studied = hours
         sub.notes = clean_notes
         sub.submission_type = sub_type
         if timer_shot:
+            _discard_screenshot(db, sub.timer_screenshot_id)
             sub.timer_screenshot_id = timer_shot.id
         if question_shot:
+            _discard_screenshot(db, sub.question_screenshot_id)
             sub.question_screenshot_id = question_shot.id
         sub.status = "pending"
         sub.is_verified = False
@@ -121,7 +143,8 @@ async def _handle_upload(
         )
         db.add(sub)
 
-    user.total_study_hours += hours
+    # Replacing a pending submission must not bank the hours a second time.
+    user.total_study_hours = max(0.0, user.total_study_hours - previous_hours + hours)
     user.last_study_date = func.now()
     if is_new and is_leave:
         user.leaves_remaining = max(0, user.leaves_remaining - 1)

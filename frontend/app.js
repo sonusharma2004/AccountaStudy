@@ -83,11 +83,12 @@ async function doRegister() {
   const name = document.getElementById("regName").value;
   const email = document.getElementById("regEmail").value;
   const password = document.getElementById("regPass").value;
+  const joinCode = (document.getElementById("regJoinCode")?.value || "").trim().toUpperCase();
   try {
     const res = await fetch(`${API_URL}/auth/register`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, email, password, studentType: regStudentType })
+      body: JSON.stringify({ name, email, password, studentType: regStudentType, joinCode })
     });
     const data = await res.json();
     if (!res.ok) { alert(data.message || "Register failed"); return; }
@@ -95,6 +96,20 @@ async function doRegister() {
     switchView('login');
   } catch (err) {
     alert("Server error");
+  }
+}
+
+// Only ask for a join code when the server is actually enforcing one.
+async function initSignupMode() {
+  try {
+    const res = await fetchWithTimeout(`${API_URL}/auth/signup-info`);
+    if (!res.ok) return;
+    const data = await res.json();
+    const group = document.getElementById("joinCodeGroup");
+    if (group) group.style.display = data.joinCodeRequired ? "" : "none";
+  } catch {
+    // Offline or backend asleep — leave the field hidden; the API still rejects
+    // a missing code, so nobody slips through.
   }
 }
 
@@ -296,16 +311,28 @@ function nav(page){
   document.getElementById('topbarSub').textContent=meta.sub;
   S.currentPage=page;
   if(page==='leaderboard'){fetchLeaderboard().then(()=>setTimeout(animateLbBars,80));}
-  if(page==='analytics'){buildActGrid();}
+  if(page==='analytics'){buildActGrid();initCharts();}
   if(page==='admin-verify'){fetchSubmissions().then(renderAdminSubmissions);}
   if(page==='submit'){renderTodaySub();updateSubWindowBanner();renderSubmitAllowance();}
 }
 
 // ===================== DASHBOARD =====================
+// The API files every date against the student's own calendar day (IST), so the
+// browser has to use local date parts too. toISOString() would give UTC and be
+// a day behind for anything submitted after midnight.
+function localDateStr(value){
+  const d = value ? new Date(value) : new Date();
+  if(Number.isNaN(d.getTime())) return '';
+  const pad = n => String(n).padStart(2,'0');
+  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+}
+
+function todayStr(){ return localDateStr(); }
+
 function getTodayStudySeconds(){
-  const today = new Date().toISOString().split('T')[0];
+  const today = todayStr();
   return (S.sessions||[]).filter(s=>{
-    const d = s.date || new Date(s.startTime||s.endTime||Date.now()).toISOString().split('T')[0];
+    const d = s.date || localDateStr(s.startTime||s.endTime||Date.now());
     return d === today;
   }).reduce((a,s)=>a+(s.duration||0), 0);
 }
@@ -351,8 +378,8 @@ function openStatModal(type){
   let html='';
   if(type==='today'){
     const todaySessions=S.sessions.filter(s=>{
-      const d=new Date(s.startTime||s.endTime||Date.now()).toISOString().split('T')[0];
-      return d===new Date().toISOString().split('T')[0];
+      const d=s.date||localDateStr(s.startTime||s.endTime||Date.now());
+      return d===todayStr();
     });
     const totalSecs=todaySessions.reduce((a,s)=>a+(s.duration||0),0);
     html=`<div style="text-align:center;margin-bottom:24px">
@@ -448,7 +475,7 @@ function closeStatModal(){
 }
 
 function getTodaySub(uid){
-  const today=new Date().toISOString().split('T')[0];
+  const today=todayStr();
   return S.submissions.find(s=>{
     if (s.date !== today) return false;
     const subUid = s.userId?._id || s.userId;
@@ -574,19 +601,64 @@ function setSubmissionType(type){
 
 function triggerUpload(id){ /* handled by input */ }
 
-function handleFileUpload(input,previewId,zoneId){
+// Vercel rejects any request over 4.5MB before it reaches the API, and a
+// submission carries two images, so each one is resized well under half of that.
+const MAX_IMAGE_EDGE = 1280;
+const IMAGE_QUALITY = 0.8;
+
+function compressImage(file){
+  return new Promise((resolve,reject)=>{
+    const reader=new FileReader();
+    reader.onerror=()=>reject(new Error('Could not read that file.'));
+    reader.onload=e=>{
+      const img=new Image();
+      img.onerror=()=>reject(new Error('That file is not a readable image.'));
+      img.onload=()=>{
+        const scale=Math.min(1, MAX_IMAGE_EDGE/Math.max(img.width,img.height));
+        const canvas=document.createElement('canvas');
+        canvas.width=Math.round(img.width*scale);
+        canvas.height=Math.round(img.height*scale);
+        canvas.getContext('2d').drawImage(img,0,0,canvas.width,canvas.height);
+        resolve(canvas.toDataURL('image/jpeg',IMAGE_QUALITY));
+      };
+      img.src=e.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+async function handleFileUpload(input,previewId,zoneId){
   const file=input.files[0];
   if(!file) return;
   const key=input.id==='timerFile'?'timer':'quest';
-  const reader=new FileReader();
-  reader.onload=e=>{
-    S.timerFiles[key]=e.target.result;
+  const zone=document.getElementById(zoneId);
+  const content=zone.querySelector('[id$="UploadContent"]');
+  try{
+    const dataUrl=await compressImage(file);
+    S.timerFiles[key]=dataUrl;
     const preview=document.getElementById(previewId);
-    preview.src=e.target.result;
+    preview.src=dataUrl;
     preview.style.display='block';
-    document.getElementById(zoneId).querySelector('[id$="UploadContent"]').style.display='none';
-  };
-  reader.readAsDataURL(file);
+    if(content) content.style.display='none';
+  }catch(err){
+    S.timerFiles[key]=null;
+    input.value='';
+    if(content) content.style.display='';
+    alert(err.message||'Could not process that image. Try a different screenshot.');
+  }
+}
+
+// A rejected upload never reaches the API, so the response is the host's HTML
+// error page rather than our JSON. Turn that into something a student can act on.
+async function readUploadResponse(res){
+  try{
+    return await res.json();
+  }catch{
+    if(res.status===413){
+      return { message:'Those screenshots are too large to send. Crop them or use a plain screenshot rather than a photo of the screen, then try again.' };
+    }
+    return { message:`Upload failed (error ${res.status}). Check your connection and try again.` };
+  }
 }
 
 async function submitProof() {
@@ -637,7 +709,7 @@ async function submitProof() {
       headers: { ...authHeader() },
       body: formData,
     });
-    const data = await res.json();
+    const data = await readUploadResponse(res);
     if (!res.ok) { alert(data.message || "Upload failed"); return; }
     toast("Submitted successfully ✅", "success");
     await fetchSubmissions();
@@ -1076,20 +1148,42 @@ function openAnalyticsModal(type){
   modal.style.display='flex';
 }
 
+// Hours the logged-in student actually logged, keyed by calendar day.
+function myHoursByDate(){
+  const uid=S.user?._id||S.user?.id;
+  const map={};
+  (S.submissions||[]).forEach(s=>{
+    const subUid=s.userId?._id||s.userId;
+    if(subUid!=null && String(subUid)!==String(uid)) return;
+    if(!s.date) return;
+    map[s.date]=(map[s.date]||0)+(s.hoursStudied||s.hours||0);
+  });
+  return map;
+}
+
 function buildActGrid(){
   const grid=document.getElementById('actGrid');
+  if(!grid) return;
+  const hours=myHoursByDate();
   const weeks=13;
+  // Walk back to the Sunday that starts the earliest column.
+  const start=new Date();
+  start.setDate(start.getDate()-(weeks*7-1));
+  start.setDate(start.getDate()-start.getDay());
+
   let html='';
   for(let w=0;w<weeks;w++){
     html+='<div class="act-col">';
     for(let d=0;d<7;d++){
-      const r=Math.random();
+      const cell=new Date(start);
+      cell.setDate(start.getDate()+w*7+d);
+      const h=hours[localDateStr(cell)]||0;
       let cls='';
-      if(r>0.75) cls='act-5';
-      else if(r>0.55) cls='act-4';
-      else if(r>0.4) cls='act-3';
-      else if(r>0.25) cls='act-1';
-      html+=`<div class="act-cell ${cls}"></div>`;
+      if(h>=6) cls='act-5';
+      else if(h>=4) cls='act-4';
+      else if(h>=2) cls='act-3';
+      else if(h>0) cls='act-1';
+      html+=`<div class="act-cell ${cls}" title="${localDateStr(cell)} — ${h?h.toFixed(1)+'h':'no study'}"></div>`;
     }
     html+='</div>';
   }
@@ -1270,7 +1364,10 @@ function renderAdminUsers(){
       <td><span style="color:var(--success-dark);font-weight:600">${u.totalCompleted ?? u.completed ?? u.completedCount ?? 0}</span></td>
       <td><span style="color:var(--error);font-weight:600">${u.totalFines ?? u.fines ?? 0}</span></td>
       <td>${lastSub?renderStatusBadge(lastSub.status):'<span class="pill pill-gray">No data</span>'}</td>
-      <td><button class="btn btn-danger btn-sm" onclick="removeUser('${uid}')">Remove</button></td>
+      <td style="white-space:nowrap">
+        <button class="btn btn-secondary btn-sm" onclick="resetStudentPassword('${uid}','${(u.name||'').replace(/'/g,"\\'")}')">Reset Password</button>
+        <button class="btn btn-danger btn-sm" onclick="removeUser('${uid}')">Remove</button>
+      </td>
     </tr>`;
   }).join('');
 }
@@ -1293,29 +1390,111 @@ async function removeUser(id){
   toast('Student removed','info');
 }
 
+async function openAddStudent(){
+  const name=prompt('Student full name:');
+  if(!name) return;
+  const email=prompt('Student email:');
+  if(!email) return;
+  const studentType=confirm('Is this student an intern?\n\nOK = Intern, Cancel = Full-time aspirant')?'intern':'fulltime';
+  try{
+    const res=await fetch(`${API_URL}/admin/student`,{
+      method:'POST',
+      headers:{'Content-Type':'application/json',...authHeader()},
+      body:JSON.stringify({name,email,studentType})
+    });
+    const data=await res.json();
+    if(!res.ok){ toast(data.message||'Could not create student','error'); return; }
+    alert(`${data.student.name} is ready.\n\nEmail: ${data.student.email}\nTemporary password: ${data.temporaryPassword}\n\nShare this with them now — it is not shown again.`);
+    await fetchLeaderboard();
+    toast('Student added','success');
+  }catch(err){ toast('Network error','error'); }
+}
+
+async function resetStudentPassword(id,name){
+  if(!confirm(`Reset the password for ${name||'this student'}?`)) return;
+  try{
+    const res=await fetch(`${API_URL}/admin/user/${id}/password`,{
+      method:'PUT',
+      headers:{'Content-Type':'application/json',...authHeader()},
+      body:JSON.stringify({})
+    });
+    const data=await res.json();
+    if(!res.ok){ toast(data.message||'Could not reset password','error'); return; }
+    alert(`New temporary password for ${name}:\n\n${data.temporaryPassword}\n\nShare this with them now — it is not shown again.`);
+  }catch(err){ toast('Network error','error'); }
+}
+
+// The CSV endpoints need the auth header, so fetch the file and hand the browser
+// a blob rather than pointing a plain link at the URL.
+async function exportCsv(kind){
+  try{
+    const res=await fetch(`${API_URL}/admin/export/${kind}`,{headers:{...authHeader()}});
+    if(!res.ok){ toast('Export failed','error'); return; }
+    const blob=await res.blob();
+    const name=(res.headers.get('Content-Disposition')||'').match(/filename="([^"]+)"/)?.[1]
+      || `${kind}-${todayStr()}.csv`;
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');
+    a.href=url; a.download=name;
+    document.body.appendChild(a); a.click(); a.remove();
+    URL.revokeObjectURL(url);
+    toast('Download started','success');
+  }catch(err){ toast('Export failed','error'); }
+}
+
 // ===================== CHARTS =====================
 function initCharts(){
+  // Safe to call again after new data arrives; Chart.js refuses to reuse a canvas.
+  Object.values(S.charts||{}).forEach(c=>{ try{ c.destroy(); }catch{} });
+  S.charts={};
   const tc='#94A3B8',gc='rgba(226,232,240,0.8)';
+  const hoursByDate=myHoursByDate();
   const wCtx=document.getElementById('weekChart').getContext('2d');
+  // Last 7 days, oldest first, labelled by weekday.
+  const weekDays=Array.from({length:7},(_,i)=>{
+    const d=new Date(); d.setDate(d.getDate()-(6-i)); return d;
+  });
   S.charts.week=new Chart(wCtx,{
     type:'bar',
     data:{
-      labels:['Mon','Tue','Wed','Thu','Fri','Sat','Sun'],
-      datasets:[{data:[3.5,5.2,4.1,6.8,5.5,7.2,4.5],backgroundColor:'rgba(59,130,246,0.7)',borderRadius:6,borderSkipped:false}]
+      labels:weekDays.map(d=>['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][d.getDay()]),
+      datasets:[{data:weekDays.map(d=>+(hoursByDate[localDateStr(d)]||0).toFixed(1)),backgroundColor:'rgba(59,130,246,0.7)',borderRadius:6,borderSkipped:false}]
     },
     options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},
       scales:{x:{grid:{display:false},ticks:{color:tc}},y:{grid:{color:gc},ticks:{color:tc,callback:v=>v+'h'},border:{dash:[3,3]}}}}
   });
   const sCtx=document.getElementById('subjectChart').getContext('2d');
+  const myUid=S.user?._id||S.user?.id;
+  const bySubject={};
+  (S.submissions||[]).forEach(s=>{
+    const subUid=s.userId?._id||s.userId;
+    if(subUid!=null && String(subUid)!==String(myUid)) return;
+    const name=s.subject||'Other';
+    bySubject[name]=(bySubject[name]||0)+(s.hoursStudied||s.hours||0);
+  });
+  const subjectNames=Object.keys(bySubject).sort((a,b)=>bySubject[b]-bySubject[a]).slice(0,6);
   S.charts.subj=new Chart(sCtx,{
     type:'doughnut',
-    data:{labels:['Math','Physics','Coding','Chem','Bio'],datasets:[{data:[35,22,18,15,10],backgroundColor:['#3B82F6','#8B5CF6','#22C55E','#F59E0B','#EF4444'],borderColor:'#fff',borderWidth:3,hoverOffset:6}]},
+    data:{
+      labels:subjectNames.length?subjectNames:['No data yet'],
+      datasets:[{
+        data:subjectNames.length?subjectNames.map(n=>+bySubject[n].toFixed(1)):[1],
+        backgroundColor:['#3B82F6','#8B5CF6','#22C55E','#F59E0B','#EF4444','#14B8A6'],
+        borderColor:'#fff',borderWidth:3,hoverOffset:6
+      }]
+    },
     options:{responsive:true,maintainAspectRatio:false,cutout:'70%',plugins:{legend:{position:'right',labels:{color:tc,boxWidth:10,padding:10}}}}
   });
   const tCtx=document.getElementById('trendChart').getContext('2d');
+  const trendDays=Array.from({length:30},(_,i)=>{
+    const d=new Date(); d.setDate(d.getDate()-(29-i)); return d;
+  });
   S.charts.trend=new Chart(tCtx,{
     type:'line',
-    data:{labels:Array.from({length:30},(_,i)=>i===29?'Today':`${30-i}d`),datasets:[{data:Array.from({length:30},()=>+(Math.random()*7+1).toFixed(1)),borderColor:'#3B82F6',backgroundColor:'rgba(59,130,246,0.06)',fill:true,tension:0.4,pointRadius:0,borderWidth:2}]},
+    data:{
+      labels:trendDays.map((d,i)=>i===29?'Today':`${29-i}d`),
+      datasets:[{data:trendDays.map(d=>+(hoursByDate[localDateStr(d)]||0).toFixed(1)),borderColor:'#3B82F6',backgroundColor:'rgba(59,130,246,0.06)',fill:true,tension:0.4,pointRadius:0,borderWidth:2}]
+    },
     options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},
       scales:{x:{grid:{display:false},ticks:{color:tc,maxTicksLimit:6}},y:{grid:{color:gc},ticks:{color:tc,callback:v=>v+'h'},border:{dash:[3,3]}}}}
   });
@@ -1380,11 +1559,12 @@ document.addEventListener('keydown',e=>{
       if(userRes.ok){
         const userData=await userRes.json();
         await loginUser(userData.user);
-      } else {
-        localStorage.removeItem('token');
+        return;
       }
+      localStorage.removeItem('token');
     } catch(err){
       console.warn('Session restore failed:',err);
     }
   }
+  initSignupMode();
 })();

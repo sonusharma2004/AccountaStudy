@@ -7,6 +7,7 @@ Usage:  python -m scripts.e2e_test [base_url]
 """
 import base64
 import io
+import os
 import sys
 import time
 import urllib.error
@@ -15,6 +16,8 @@ import uuid
 from typing import Any
 
 BASE = sys.argv[1] if len(sys.argv) > 1 else "http://localhost:5001/api"
+# Registration is gated behind a shared code in production.
+JOIN_CODE = os.getenv("JOIN_CODE", "")
 
 passed = 0
 failed = 0
@@ -119,7 +122,7 @@ def main() -> int:
     status, reg = request(
         "/auth/register",
         "POST",
-        json_body={"name": "E2E Tester", "email": email, "password": "test1234", "studentType": "intern"},
+        json_body={"name": "E2E Tester", "email": email, "password": "test1234", "studentType": "intern", "joinCode": JOIN_CODE},
     )
     check("register new student", status == 201 and reg.get("success"), f"status {status}")
     check("returns JWT token", bool(reg.get("token")))
@@ -128,12 +131,12 @@ def main() -> int:
     check("starts with 3 half days", reg.get("user", {}).get("halfDaysRemaining") == 3)
 
     status, _ = request(
-        "/auth/register", "POST", json_body={"name": "Dupe", "email": email, "password": "test1234"}
+        "/auth/register", "POST", json_body={"name": "Dupe", "email": email, "password": "test1234", "joinCode": JOIN_CODE}
     )
     check("duplicate email rejected (409)", status == 409, f"got {status}")
 
     status, _ = request(
-        "/auth/register", "POST", json_body={"name": "X", "email": "bad-email", "password": "test1234"}
+        "/auth/register", "POST", json_body={"name": "X", "email": "bad-email", "password": "test1234", "joinCode": JOIN_CODE}
     )
     check("invalid email rejected (400)", status == 400, f"got {status}")
 
@@ -274,7 +277,7 @@ def main() -> int:
     _, fresh = request(
         "/auth/register",
         "POST",
-        json_body={"name": "E2E Validation", "email": fresh_email, "password": "test1234"},
+        json_body={"name": "E2E Validation", "email": fresh_email, "password": "test1234", "joinCode": JOIN_CODE},
     )
     fresh_token = fresh.get("token")
 

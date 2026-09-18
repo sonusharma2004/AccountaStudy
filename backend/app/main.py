@@ -38,6 +38,8 @@ app.add_middleware(
     allow_origin_regex=r"https://.*\.(vercel|netlify)\.app|https://.*\.onrender\.com",
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["Content-Type", "Authorization"],
+    # Without this the browser hides the filename on CSV downloads.
+    expose_headers=["Content-Disposition"],
     allow_credentials=True,
 )
 

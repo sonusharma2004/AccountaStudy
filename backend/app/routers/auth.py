@@ -1,11 +1,13 @@
 """Registration, login and profile endpoints."""
 import re
+import secrets
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app.config import settings
 from app.database import get_db
 from app.models import User
 from app.security import create_token, get_current_user, hash_password, verify_password
@@ -22,6 +24,7 @@ class RegisterBody(BaseModel):
     password: str | None = None
     role: str | None = None
     studentType: str | None = None
+    joinCode: str | None = None
 
 
 class LoginBody(BaseModel):
@@ -33,8 +36,21 @@ class UpdateProfileBody(BaseModel):
     name: str = Field(min_length=2, max_length=50)
 
 
+@router.get("/signup-info")
+def signup_info():
+    """Lets the register form ask for a join code only when one is configured."""
+    return {"success": True, "joinCodeRequired": not settings.registration_is_open}
+
+
 @router.post("/register", status_code=201)
 def register(body: RegisterBody, db: Session = Depends(get_db)):
+    if not settings.registration_is_open:
+        supplied = (body.joinCode or "").strip()
+        if not supplied:
+            raise HTTPException(400, "A join code is required. Ask your admin for it.")
+        if not secrets.compare_digest(supplied.upper(), settings.join_code.strip().upper()):
+            raise HTTPException(403, "That join code is not valid.")
+
     if not body.name or not body.email or not body.password:
         raise HTTPException(400, "Please provide name, email and password.")
 

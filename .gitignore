@@ -32,3 +32,6 @@ npm-debug.log*
 # Local Netlify folder
 .netlify
 .vercel
+
+# Personal Python revision notes (not part of the project)
+python-revision-notes/

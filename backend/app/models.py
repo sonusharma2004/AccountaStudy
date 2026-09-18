@@ -66,6 +66,9 @@ class User(Base):
 
     leaves_remaining: Mapped[int] = mapped_column(Integer, default=3, nullable=False)
     half_days_remaining: Mapped[int] = mapped_column(Integer, default=3, nullable=False)
+    # "YYYY-MM" of the month the two counters above belong to. When the stored
+    # month falls behind the current one the quota is topped back up.
+    allowance_period: Mapped[str] = mapped_column(String(7), default="", nullable=False)
 
     avatar: Mapped[str] = mapped_column(String(10), default="", nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
