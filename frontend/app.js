@@ -206,6 +206,8 @@ async function loginUser(user){
     document.getElementById('submitBtn').style.display='none';
     document.getElementById('nav-submit').style.display='none';
     document.getElementById('nav-my-register').style.display='none';
+    document.getElementById('nav-timer').style.display='none';
+    document.getElementById('nav-analytics').style.display='none';
   }
   await Promise.all([fetchSubmissions(), fetchSessions(), fetchSubmitGate()]);
   fetchLeaderboard();
@@ -220,7 +222,8 @@ async function loginUser(user){
   renderTimerSessions();
   updateDeadlineBanner();
   toast(`Welcome back, ${user.name.split(' ')[0]}!`,'success');
-  nav('dashboard');
+  // An admin's day starts with the submissions waiting to be reviewed.
+  nav(user.role==='admin' ? 'admin-verify' : 'dashboard');
 }
 
 async function fetchSubmissions() {
@@ -305,8 +308,15 @@ const pageMeta={
   'admin-users':{title:'Student Manager',sub:'Manage all enrolled students'},
 };
 
+// Pages that only make sense for someone who studies. An admin has no sessions
+// or submissions of their own, so these render empty for them.
+const STUDENT_ONLY_PAGES = ['submit','timer','analytics','my-register'];
+const ADMIN_ONLY_PAGES = ['admin-verify','admin-users','admin-register'];
+
 function nav(page){
-  if((page==='admin-verify'||page==='admin-users')&&S.user?.role!=='admin'){toast('Admin only','error');return;}
+  const isAdmin = S.user?.role === 'admin';
+  if(ADMIN_ONLY_PAGES.includes(page) && !isAdmin){toast('Admin only','error');return;}
+  if(STUDENT_ONLY_PAGES.includes(page) && isAdmin){ page='admin-verify'; }
   if(page!=='timer' && S.timerState==='idle') document.body.classList.remove('focus-mode');
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
