@@ -85,6 +85,8 @@ def get_current_user(request: Request, db: Session = Depends(get_db)) -> User:
     user = db.get(User, user_id)
     if user is None:
         raise _unauthorized("User no longer exists.")
+    if not user.is_approved:
+        raise HTTPException(status_code=403, detail="Your account is waiting for admin approval.")
     if not user.is_active:
         raise HTTPException(status_code=403, detail="Your account has been deactivated.")
     refresh_monthly_allowance(user, db)

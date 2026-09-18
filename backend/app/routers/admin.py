@@ -29,7 +29,8 @@ def _initials(name: str) -> str:
 
 @router.get("/users")
 def get_all_users(search: str | None = None, db: Session = Depends(get_db)):
-    query = select(User).where(User.role == "student")
+    # Pending students live on /admin/pending; this is the approved roster.
+    query = select(User).where(User.role == "student", User.is_approved.is_(True))
     if search:
         pattern = f"%{search}%"
         query = query.where(User.name.ilike(pattern) | User.email.ilike(pattern))
@@ -168,6 +169,48 @@ def _temp_password() -> str:
     return "".join(secrets.choice(alphabet) for _ in range(10))
 
 
+@router.get("/pending")
+def list_pending(db: Session = Depends(get_db)):
+    """Students who registered with the join code and are waiting to be let in."""
+    users = db.scalars(
+        select(User)
+        .where(User.role == "student", User.is_approved.is_(False))
+        .order_by(User.created_at)
+    ).all()
+    return {
+        "success": True,
+        "total": len(users),
+        "pending": [
+            {
+                "id": str(u.id),
+                "name": u.name,
+                "email": u.email,
+                "avatar": u.avatar or _initials(u.name),
+                "studentType": u.student_type,
+                "requestedAt": iso(u.created_at),
+            }
+            for u in users
+        ],
+    }
+
+
+@router.put("/user/{user_id}/approve")
+def approve_user(user_id: str, db: Session = Depends(get_db)):
+    try:
+        uid = uuid.UUID(user_id)
+    except ValueError:
+        raise HTTPException(404, "User not found.")
+
+    user = db.get(User, uid)
+    if user is None:
+        raise HTTPException(404, "User not found.")
+
+    user.is_approved = True
+    user.is_active = True
+    db.commit()
+    return {"success": True, "message": f"{user.name} can now log in."}
+
+
 @router.post("/student", status_code=201)
 def create_student(body: CreateStudentBody, db: Session = Depends(get_db)):
     """Onboard a student directly, without them needing the join code."""
@@ -191,6 +234,8 @@ def create_student(body: CreateStudentBody, db: Session = Depends(get_db)):
         password_hash=hash_password(password),
         role="student",
         student_type=body.studentType if body.studentType in ("intern", "fulltime") else "fulltime",
+        # Created by the admin, so there is nothing left to approve.
+        is_approved=True,
     )
     db.add(student)
     db.commit()

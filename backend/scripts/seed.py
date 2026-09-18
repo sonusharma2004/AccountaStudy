@@ -48,6 +48,7 @@ def main() -> None:
             password_hash=hash_password("admin123"),
             role="admin",
             avatar="AS",
+            is_approved=True,
         )
         db.add(admin)
 
@@ -59,6 +60,7 @@ def main() -> None:
                 password_hash=hash_password("pass123"),
                 role="student",
                 student_type=student_type,
+                is_approved=True,
             )
             students.append(student)
             db.add(student)

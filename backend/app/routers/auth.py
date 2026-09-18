@@ -78,12 +78,19 @@ def register(body: RegisterBody, db: Session = Depends(get_db)):
         password_hash=hash_password(body.password),
         role=role,
         student_type=student_type,
+        is_approved=False,
     )
     db.add(user)
     db.commit()
     db.refresh(user)
 
-    return {"success": True, "token": create_token(user.id), "user": user_payload(user)}
+    # No token: the account cannot be used until an admin approves it.
+    return {
+        "success": True,
+        "pendingApproval": True,
+        "message": "Registration received. Your admin will approve your account before you can log in.",
+        "user": user_payload(user),
+    }
 
 
 @router.post("/login")
@@ -96,6 +103,10 @@ def login(body: LoginBody, db: Session = Depends(get_db)):
 
     if user is None or not verify_password(body.password, user.password_hash):
         raise HTTPException(401, "Invalid email or password.")
+    if not user.is_approved:
+        raise HTTPException(
+            403, "Your account is waiting for admin approval. You'll be able to log in once it's approved."
+        )
     if not user.is_active:
         raise HTTPException(403, "Account deactivated. Contact admin.")
 

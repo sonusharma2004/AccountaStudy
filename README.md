@@ -143,7 +143,9 @@ ENVIRONMENT=development
 PORT=5001
 
 # Students must enter this code to register. Leave it blank to let anyone
-# with the link sign up.
+# with the link sign up. Either way, a new account cannot log in until the
+# admin approves it from Student Manager, so a forwarded code is not enough
+# to get someone onto the roster.
 JOIN_CODE=ABC123
 
 # Indian Standard Time. Every calendar day boundary is derived from this, so a
@@ -209,7 +211,7 @@ Open: [http://localhost:5500](http://localhost:5500)
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | POST | /api/auth/login | Login |
-| POST | /api/auth/register | Register new user (requires the join code when one is set) |
+| POST | /api/auth/register | Register new user (requires the join code when one is set; the account then waits for admin approval) |
 | GET | /api/auth/signup-info | Whether a join code is currently required |
 | GET | /api/auth/me | Get current user profile |
 | POST | /api/submission/upload | Submit daily proof (with screenshots) |
@@ -220,6 +222,8 @@ Open: [http://localhost:5500](http://localhost:5500)
 | POST | /api/session/stop | Stop study session |
 | GET | /api/leaderboard | Get leaderboard rankings |
 | GET | /api/admin/stats | System statistics (admin only) |
+| GET | /api/admin/pending | Students waiting for approval (admin only) |
+| PUT | /api/admin/user/{id}/approve | Let a pending student in (admin only) |
 | POST | /api/admin/student | Create a student and return a one-time password (admin only) |
 | PUT | /api/admin/user/{id}/password | Reset a student's password (admin only) |
 | GET | /api/admin/export/submissions | Download submissions as CSV (admin only) |

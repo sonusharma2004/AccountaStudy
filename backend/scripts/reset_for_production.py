@@ -67,6 +67,7 @@ def main() -> None:
                 email=email,
                 password_hash=hash_password(password),
                 role="admin",
+                is_approved=True,
                 allowance_period=local_now().strftime("%Y-%m"),
             )
         )

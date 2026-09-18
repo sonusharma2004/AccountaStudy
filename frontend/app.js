@@ -38,6 +38,7 @@ const S = {
   timerFiles:{timer:null,quest:null},
   leaderboardData: [],
   adminUsers: [],
+  pendingUsers: [],
 };
 
 // ===================== AUTH =====================
@@ -93,7 +94,10 @@ async function doRegister() {
     });
     const data = await res.json();
     if (!res.ok) { alert(data.message || "Register failed"); return; }
-    alert("Registered successfully 🎉 Please log in.");
+    alert(
+      data.message ||
+      "Registration received. Your admin will approve your account before you can log in."
+    );
     switchView('login');
   } catch (err) {
     alert("Server error");
@@ -203,7 +207,7 @@ async function loginUser(user){
   }
   await Promise.all([fetchSubmissions(), fetchSessions()]);
   fetchLeaderboard();
-  if(user.role==='admin') fetchAdminUsers().then(renderAdminUsers);
+  if(user.role==='admin') fetchAdminUsers().then(()=>{renderPendingApprovals();renderAdminUsers();});
   initCharts();
   updatePendingBadge();
   renderDashboard();
@@ -314,7 +318,7 @@ function nav(page){
   if(page==='leaderboard'){fetchLeaderboard().then(()=>setTimeout(animateLbBars,80));}
   if(page==='analytics'){buildActGrid();initCharts();}
   if(page==='admin-verify'){fetchSubmissions().then(renderAdminSubmissions);}
-  if(page==='admin-users'){fetchAdminUsers().then(renderAdminUsers);}
+  if(page==='admin-users'){fetchAdminUsers().then(()=>{renderPendingApprovals();renderAdminUsers();});}
   if(page==='submit'){renderTodaySub();updateSubWindowBanner();renderSubmitAllowance();}
 }
 
@@ -1341,7 +1345,7 @@ async function saveVerification(){
   renderDashboard();
   renderTodaySub();
   // Verification changes streaks, points and today's status, so pull fresh rows.
-  fetchAdminUsers().then(renderAdminUsers);
+  fetchAdminUsers().then(()=>{renderPendingApprovals();renderAdminUsers();});
   toast(`Status set to "${S.verifyStatus}" for ${student?.name?.split(' ')[0]||'student'}`,'success');
 }
 
@@ -1351,13 +1355,71 @@ async function saveVerification(){
 async function fetchAdminUsers(){
   if(S.user?.role!=='admin') return;
   try{
-    const res=await fetch(`${API_URL}/admin/users`,{headers:{...authHeader()}});
-    if(!res.ok) return;
-    const data=await res.json();
-    S.adminUsers=data.users||[];
+    const [rosterRes,pendingRes]=await Promise.all([
+      fetch(`${API_URL}/admin/users`,{headers:{...authHeader()}}),
+      fetch(`${API_URL}/admin/pending`,{headers:{...authHeader()}}),
+    ]);
+    if(rosterRes.ok) S.adminUsers=(await rosterRes.json()).users||[];
+    if(pendingRes.ok) S.pendingUsers=(await pendingRes.json()).pending||[];
   }catch(err){
     console.error('Failed to fetch students:',err);
   }
+}
+
+function renderPendingApprovals(){
+  const card=document.getElementById('pendingApprovalCard');
+  const list=document.getElementById('pendingApprovalList');
+  const badge=document.getElementById('approvalBadge');
+  if(!card||!list) return;
+  const pending=S.pendingUsers||[];
+
+  if(badge){
+    badge.textContent=pending.length;
+    badge.style.display=pending.length?'':'none';
+  }
+  if(!pending.length){ card.style.display='none'; return; }
+
+  card.style.display='';
+  document.getElementById('pendingApprovalCount').textContent=
+    `${pending.length} waiting`;
+  list.innerHTML=pending.map(u=>{
+    const safeName=(u.name||'').replace(/'/g,"\\'");
+    const type=u.studentType==='intern'?'Intern':'Full-time aspirant';
+    return `<div style="display:flex;align-items:center;gap:12px;padding:12px 14px;background:var(--bg);border-radius:10px;margin-bottom:8px">
+      <div style="width:36px;height:36px;border-radius:9px;background:var(--warning);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;color:#fff;flex-shrink:0">${u.avatar||'?'}</div>
+      <div style="min-width:0;flex:1">
+        <div style="font-weight:600;color:var(--text)">${u.name}</div>
+        <div style="font-size:12.5px;color:var(--text3);word-break:break-all">${u.email} · ${type}</div>
+      </div>
+      <button class="btn btn-primary btn-sm" onclick="approveStudent('${u.id}','${safeName}')">Approve</button>
+      <button class="btn btn-danger btn-sm" onclick="rejectStudent('${u.id}','${safeName}')">Reject</button>
+    </div>`;
+  }).join('');
+}
+
+async function approveStudent(id,name){
+  try{
+    const res=await fetch(`${API_URL}/admin/user/${id}/approve`,{method:'PUT',headers:{...authHeader()}});
+    const data=await res.json();
+    if(!res.ok){ toast(data.message||'Could not approve','error'); return; }
+    await fetchAdminUsers();
+    renderPendingApprovals();
+    renderAdminUsers();
+    toast(`${name} approved`,'success');
+  }catch(err){ toast('Network error','error'); }
+}
+
+async function rejectStudent(id,name){
+  if(!confirm(`Reject ${name}? Their account will be deleted and they will need to register again.`)) return;
+  try{
+    const res=await fetch(`${API_URL}/admin/user/${id}`,{method:'DELETE',headers:{...authHeader()}});
+    const data=await res.json();
+    if(!res.ok){ toast(data.message||'Could not reject','error'); return; }
+    await fetchAdminUsers();
+    renderPendingApprovals();
+    renderAdminUsers();
+    toast(`${name} rejected`,'info');
+  }catch(err){ toast('Network error','error'); }
 }
 
 function renderAdminUsers(){
@@ -1424,6 +1486,7 @@ async function openAddStudent(){
     if(!res.ok){ toast(data.message||'Could not create student','error'); return; }
     alert(`${data.student.name} is ready.\n\nEmail: ${data.student.email}\nTemporary password: ${data.temporaryPassword}\n\nShare this with them now — it is not shown again.`);
     await fetchAdminUsers();
+    renderPendingApprovals();
     renderAdminUsers();
     toast('Student added','success');
   }catch(err){ toast('Network error','error'); }

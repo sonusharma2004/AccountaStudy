@@ -125,10 +125,27 @@ def main() -> int:
         json_body={"name": "E2E Tester", "email": email, "password": "test1234", "studentType": "intern", "joinCode": JOIN_CODE},
     )
     check("register new student", status == 201 and reg.get("success"), f"status {status}")
-    check("returns JWT token", bool(reg.get("token")))
+    check("no token until approved", not reg.get("token"))
+    check("flagged as pending approval", reg.get("pendingApproval") is True)
     check("studentType saved as intern", reg.get("user", {}).get("studentType") == "intern")
     check("starts with 3 leaves", reg.get("user", {}).get("leavesRemaining") == 3)
     check("starts with 3 half days", reg.get("user", {}).get("halfDaysRemaining") == 3)
+
+    status, _ = request("/auth/login", "POST", json_body={"email": email, "password": "test1234"})
+    check("cannot log in before approval (403)", status == 403, f"got {status}")
+
+    # The admin has to let them in before the rest of the journey is possible.
+    _, boss = request(
+        "/auth/login", "POST", json_body={"email": "admin@school.edu", "password": "admin123"}
+    )
+    boss_token = boss.get("token")
+    _, pending = request("/admin/pending", token=boss_token)
+    new_id = next(
+        (p["id"] for p in pending.get("pending", []) if p["email"] == email), None
+    )
+    check("student appears in the approval queue", new_id is not None)
+    status, _ = request(f"/admin/user/{new_id}/approve", "PUT", token=boss_token)
+    check("admin approves the student", status == 200, f"got {status}")
 
     status, _ = request(
         "/auth/register", "POST", json_body={"name": "Dupe", "email": email, "password": "test1234", "joinCode": JOIN_CODE}
@@ -279,7 +296,15 @@ def main() -> int:
         "POST",
         json_body={"name": "E2E Validation", "email": fresh_email, "password": "test1234", "joinCode": JOIN_CODE},
     )
-    fresh_token = fresh.get("token")
+    _, fresh_pending = request("/admin/pending", token=admin_token)
+    fresh_id = next(
+        (p["id"] for p in fresh_pending.get("pending", []) if p["email"] == fresh_email), None
+    )
+    request(f"/admin/user/{fresh_id}/approve", "PUT", token=admin_token)
+    _, fresh_login = request(
+        "/auth/login", "POST", json_body={"email": fresh_email, "password": "test1234"}
+    )
+    fresh_token = fresh_login.get("token")
 
     status, _ = request(
         "/submission/upload",

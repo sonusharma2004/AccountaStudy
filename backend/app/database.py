@@ -32,6 +32,9 @@ def get_db() -> Generator[Session, None, None]:
 # hand. Each statement is safe to run repeatedly.
 _MIGRATIONS = (
     "ALTER TABLE users ADD COLUMN IF NOT EXISTS allowance_period VARCHAR(7) NOT NULL DEFAULT ''",
+    # Defaults to TRUE so accounts that predate approval keep working; the
+    # register endpoint sets FALSE explicitly for anyone new.
+    "ALTER TABLE users ADD COLUMN IF NOT EXISTS is_approved BOOLEAN NOT NULL DEFAULT TRUE",
 )
 
 

@@ -136,13 +136,55 @@ def main() -> None:
     status, data, _ = request("GET", "/api/auth/signup-info")
     check("signup-info reports that a code is required", data.get("joinCodeRequired") is True)
 
+    print("\nApproval gate")
+    status, data, _ = request(
+        "POST",
+        "/api/auth/login",
+        body={"email": f"student{stamp}@test.dev", "password": "pass1234"},
+    )
+    check("a registered student cannot log in before approval", status == 403, f"got {status}")
+
+    # Stand up an admin so the rest of the journey can proceed.
+    import os
+
+    sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+    from app.database import SessionLocal  # noqa: E402
+    from app.models import User  # noqa: E402
+    from app.security import hash_password  # noqa: E402
+
+    admin_email = f"admin{stamp}@test.dev"
+    with SessionLocal() as db:
+        db.add(
+            User(
+                name="Test Admin",
+                email=admin_email,
+                password_hash=hash_password("adminpass123"),
+                role="admin",
+                is_approved=True,
+            )
+        )
+        db.commit()
+
+    _, boss, _ = request(
+        "POST", "/api/auth/login", body={"email": admin_email, "password": "adminpass123"}
+    )
+    admin_token = boss.get("token")
+    status, queue, _ = request("GET", "/api/admin/pending", token=admin_token)
+    pending_id = next(
+        (p["id"] for p in queue.get("pending", []) if p["email"] == f"student{stamp}@test.dev"),
+        None,
+    )
+    check("the student is waiting in the approval queue", pending_id is not None, str(queue))
+    status, _, _ = request("PUT", f"/api/admin/user/{pending_id}/approve", token=admin_token)
+    check("admin can approve them", status == 200, f"got {status}")
+
     print("\nLogin and quotas")
     status, data, _ = request(
         "POST",
         "/api/auth/login",
         body={"email": f"student{stamp}@test.dev", "password": "pass1234"},
     )
-    check("student can log in", status == 200, f"got {status}")
+    check("student can log in once approved", status == 200, f"got {status}")
     token = data.get("token")
     user = data.get("user", {})
     check("new student starts with 3 leaves", user.get("leavesRemaining") == 3)
@@ -236,30 +278,7 @@ def main() -> None:
     )
 
     print("\nAdmin tools")
-    admin_email = f"admin{stamp}@test.dev"
-    # Promote the first student to admin directly so the admin surface is testable.
-    import os
-    sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
-    from app.database import SessionLocal  # noqa: E402
-    from app.models import User  # noqa: E402
-    from app.security import hash_password  # noqa: E402
-
-    with SessionLocal() as db:
-        db.add(
-            User(
-                name="Test Admin",
-                email=admin_email,
-                password_hash=hash_password("adminpass123"),
-                role="admin",
-            )
-        )
-        db.commit()
-
-    status, data, _ = request(
-        "POST", "/api/auth/login", body={"email": admin_email, "password": "adminpass123"}
-    )
-    admin_token = data.get("token")
-    check("admin can log in", status == 200 and bool(admin_token), f"got {status}")
+    check("admin session is usable", bool(admin_token))
 
     status, data, _ = request(
         "POST",
@@ -276,7 +295,9 @@ def main() -> None:
         "/api/auth/login",
         body={"email": f"created{stamp}@test.dev", "password": temp_password},
     )
-    check("the created student can log in with it", status == 200, f"got {status}")
+    check(
+        "an admin-created student skips the approval queue", status == 200, f"got {status}"
+    )
     created_id = login_data.get("user", {}).get("id")
 
     status, data, _ = request(

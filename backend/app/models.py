@@ -72,6 +72,10 @@ class User(Base):
 
     avatar: Mapped[str] = mapped_column(String(10), default="", nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    # Self-registered students wait here until an admin lets them in, so a
+    # leaked join code cannot by itself put someone on the roster. Accounts the
+    # admin creates are approved on the spot.
+    is_approved: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
     updated_at: Mapped[datetime] = mapped_column(
