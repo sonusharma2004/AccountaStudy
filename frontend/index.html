@@ -8,6 +8,18 @@
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,600;0,9..144,700;1,9..144,400&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <link rel="stylesheet" href="style.css">
+<script>
+  // Runs before the first paint so a dark-theme user never sees a white flash.
+  // Kept inline and dependency-free for that reason; app.js loads too late.
+  (function(){
+    try{
+      var saved = localStorage.getItem('theme');
+      var dark = saved ? saved === 'dark'
+        : window.matchMedia('(prefers-color-scheme: dark)').matches;
+      if(dark) document.documentElement.setAttribute('data-theme','dark');
+    }catch(e){}
+  })();
+</script>
 </head>
 <body>
 
@@ -37,7 +49,12 @@
       </div>
     </div>
   </div>
-  <div class="auth-right">
+  <div class="auth-right" style="position:relative">
+    <button class="btn btn-icon" onclick="toggleTheme()" title="Switch theme" aria-label="Switch between light and dark theme"
+            style="position:absolute;top:20px;right:20px">
+      <svg id="themeIconSunAuth" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+      <svg id="themeIconMoonAuth" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
+    </button>
     <div style="width:100%">
       <div id="loginView">
         <div style="font-family:var(--display);font-size:28px;font-weight:600;color:var(--text);margin-bottom:4px;letter-spacing:-0.5px">Welcome back</div>
@@ -52,7 +69,7 @@
         </div>
         <button class="btn btn-primary w100" style="justify-content:center;padding:12px;font-size:15px;border-radius:var(--r2);margin-bottom:16px" onclick="doLogin()">Sign In</button>
         <div style="text-align:center;font-size:13px;color:var(--text3)">
-          No account? <a style="color:var(--primary);cursor:pointer;font-weight:600" onclick="switchView('register')">Register with your join code</a>
+          No account? <a style="color:var(--primary-dark);cursor:pointer;font-weight:600" onclick="switchView('register')">Register with your join code</a>
         </div>
         <div class="divider"></div>
         <div style="background:var(--bg);border-radius:var(--r2);padding:12px 14px;font-size:12px;color:var(--text2)">
@@ -81,9 +98,9 @@
         <div class="form-group">
           <label class="form-label">I am a</label>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-            <div id="regTypeFulltime" onclick="setRegType('fulltime')" style="border:2px solid var(--primary);background:#EFF6FF;border-radius:10px;padding:12px;text-align:center;cursor:pointer">
+            <div id="regTypeFulltime" onclick="setRegType('fulltime')" style="border:2px solid var(--primary);background:var(--primary-light);border-radius:10px;padding:12px;text-align:center;cursor:pointer">
               <div style="font-size:22px">🎓</div>
-              <div style="font-weight:700;font-size:13px;color:var(--primary);margin-top:2px">Full-time Aspirant</div>
+              <div style="font-weight:700;font-size:13px;color:var(--primary-dark);margin-top:2px">Full-time Aspirant</div>
             </div>
             <div id="regTypeIntern" onclick="setRegType('intern')" style="border:2px solid var(--border);background:var(--bg);border-radius:10px;padding:12px;text-align:center;cursor:pointer">
               <div style="font-size:22px">💼</div>
@@ -93,7 +110,7 @@
         </div>
         <button class="btn btn-primary w100" style="justify-content:center;padding:12px;font-size:15px;border-radius:var(--r2);margin-bottom:16px" onclick="doRegister()">Create Account</button>
         <div style="text-align:center;font-size:13px;color:var(--text3)">
-          Already registered? <a style="color:var(--primary);cursor:pointer;font-weight:600" onclick="switchView('login')">Sign in</a>
+          Already registered? <a style="color:var(--primary-dark);cursor:pointer;font-weight:600" onclick="switchView('login')">Sign in</a>
         </div>
       </div>
     </div>
@@ -137,7 +154,7 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
         Analytics
       </div>
-      <div class="nav-group-label">Admin</div>
+      <div class="nav-group-label" id="navGroupAdmin" style="display:none">Admin</div>
       <div class="nav-item" onclick="nav('admin-verify')" id="nav-admin-verify" style="display:none">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
         Verify Submissions
@@ -174,6 +191,10 @@
       </div>
       <div class="topbar-right">
         <div id="deadlineTag"></div>
+        <button class="btn btn-icon" id="themeBtn" onclick="toggleTheme()" title="Switch theme" aria-label="Switch between light and dark theme">
+          <svg id="themeIconSun" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+          <svg id="themeIconMoon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
+        </button>
         <button class="btn btn-primary btn-sm" onclick="nav('submit')" id="submitBtn">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
           Submit Today's Proof
@@ -191,25 +212,25 @@
       <div id="adminDash" style="display:none">
         <div class="grid g4 mb-16">
           <div class="stat-card" style="cursor:pointer" onclick="nav('admin-register')">
-            <div class="stat-icon-wrap" style="background:#EFF6FF"><span style="font-size:20px">📥</span></div>
+            <div class="stat-icon-wrap" style="background:var(--primary-light)"><span style="font-size:20px">📥</span></div>
             <div class="stat-label">Submitted today</div>
             <div class="stat-val" id="aSubmitted">—</div>
-            <div class="stat-sub" id="aSubmittedSub" style="color:var(--primary)">of the roster</div>
+            <div class="stat-sub" id="aSubmittedSub" style="color:var(--primary-dark)">of the roster</div>
           </div>
           <div class="stat-card" style="cursor:pointer" onclick="nav('admin-verify')">
-            <div class="stat-icon-wrap" style="background:#FFFBEB"><span style="font-size:20px">⏳</span></div>
+            <div class="stat-icon-wrap" style="background:var(--warning-light)"><span style="font-size:20px">⏳</span></div>
             <div class="stat-label">Awaiting your review</div>
             <div class="stat-val" id="aPending">—</div>
             <div class="stat-sub" style="color:var(--warning-dark)">Click to verify</div>
           </div>
           <div class="stat-card" style="cursor:pointer" onclick="nav('admin-register')">
-            <div class="stat-icon-wrap" style="background:#FEF2F2"><span style="font-size:20px">🚫</span></div>
+            <div class="stat-icon-wrap" style="background:var(--error-light)"><span style="font-size:20px">🚫</span></div>
             <div class="stat-label">Nothing submitted yet</div>
             <div class="stat-val" id="aMissing">—</div>
             <div class="stat-sub" style="color:var(--error-dark)">Mark them in the register</div>
           </div>
           <div class="stat-card" style="cursor:pointer" onclick="nav('admin-users')">
-            <div class="stat-icon-wrap" style="background:#F0FDF4"><span style="font-size:20px">💰</span></div>
+            <div class="stat-icon-wrap" style="background:var(--success-light)"><span style="font-size:20px">💰</span></div>
             <div class="stat-label">Deposits held</div>
             <div class="stat-val" id="aDeposit">—</div>
             <div class="stat-sub" id="aFines" style="color:var(--text3)">—</div>
@@ -234,30 +255,30 @@
       <div id="studentDash">
       <div class="grid g4 mb-16">
         <div class="stat-card" style="cursor:pointer" onclick="openStatModal('today')">
-          <div class="stat-icon-wrap" style="background:#EFF6FF"><span style="font-size:20px">⏱</span></div>
+          <div class="stat-icon-wrap" style="background:var(--primary-light)"><span style="font-size:20px">⏱</span></div>
           <div class="stat-label">Today's Study</div>
           <div class="stat-val" id="dToday">0h 0m</div>
-          <div class="stat-sub" style="color:var(--primary)">Session active or recent</div>
+          <div class="stat-sub" style="color:var(--primary-dark)">Session active or recent</div>
         </div>
         <div class="stat-card" style="cursor:pointer" onclick="openStatModal('streak')">
-          <div class="stat-icon-wrap" style="background:#F0FDF4"><span style="font-size:20px">🔥</span></div>
+          <div class="stat-icon-wrap" style="background:var(--success-light)"><span style="font-size:20px">🔥</span></div>
           <div class="stat-label">Current Streak</div>
           <div class="stat-val" id="dStreak">0 days</div>
           <div class="stat-sub" style="color:var(--success-dark)">Keep it going!</div>
         </div>
         <div class="stat-card" style="cursor:pointer" onclick="openStatModal('rank')">
-          <div class="stat-icon-wrap" style="background:#FFFBEB"><span style="font-size:20px">🏆</span></div>
+          <div class="stat-icon-wrap" style="background:var(--warning-light)"><span style="font-size:20px">🏆</span></div>
           <div class="stat-label">Your Rank</div>
           <div class="stat-val" id="dRank">#—</div>
           <div class="stat-sub" style="color:var(--warning-dark)">Leaderboard position</div>
         </div>
         <div class="stat-card" style="cursor:pointer" onclick="openStatModal('status')">
-          <div class="stat-icon-wrap" style="background:#F5F3FF"><span style="font-size:20px">📋</span></div>
+          <div class="stat-icon-wrap" style="background:var(--purple-light)"><span style="font-size:20px">📋</span></div>
           <div class="stat-label">Today's Status</div>
           <div id="dStatus"><span class="status-badge s-pending">⏳ Pending</span></div>
           <div id="dAllowance" style="display:flex;gap:8px;margin-top:6px;flex-wrap:wrap">
-            <span style="font-size:11px;color:#16A34A;font-weight:600">🏖️ <span id="dashLeavesLeft">3</span>L left</span>
-            <span style="font-size:11px;color:#D97706;font-weight:600">🟡 <span id="dashHalfLeft">3</span>HD left</span>
+            <span style="font-size:11px;color:var(--success-dark);font-weight:600">🏖️ <span id="dashLeavesLeft">3</span>L left</span>
+            <span style="font-size:11px;color:var(--warning-dark);font-weight:600">🟡 <span id="dashHalfLeft">3</span>HD left</span>
           </div>
         </div>
       </div>
@@ -302,12 +323,12 @@
             <div class="modal-sub">Submit your study evidence for today. Admin will verify and assign your daily status.</div>
 
             <!-- Leave & Half Day Allowance Banner -->
-            <div id="allowanceBanner" style="display:flex;gap:10px;background:#F0FDF4;border:1px solid #BBF7D0;border-radius:10px;padding:12px 14px;margin-bottom:16px;align-items:center">
+            <div id="allowanceBanner" style="display:flex;gap:10px;background:var(--success-light);border:1px solid var(--st-completed-br);border-radius:10px;padding:12px 14px;margin-bottom:16px;align-items:center">
               <span style="font-size:20px">🎟️</span>
               <div style="flex:1;font-size:13px;color:var(--text2)">
                 Remaining allowance this term:
-                <span style="margin-left:6px;font-weight:700;color:#16A34A">🏖️ <span id="submitLeavesLeft">3</span> Leaves</span>
-                <span style="margin-left:12px;font-weight:700;color:#D97706">🟡 <span id="submitHalfLeft">3</span> Half Days</span>
+                <span style="margin-left:6px;font-weight:700;color:var(--success-dark)">🏖️ <span id="submitLeavesLeft">3</span> Leaves</span>
+                <span style="margin-left:12px;font-weight:700;color:var(--warning-dark)">🟡 <span id="submitHalfLeft">3</span> Half Days</span>
               </div>
             </div>
 
@@ -315,16 +336,16 @@
             <div class="form-group">
               <label class="form-label">Submission Type</label>
               <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(105px,1fr));gap:10px">
-                <div id="typeFullDay" onclick="setSubmissionType('fullday')" style="border:2px solid var(--primary);background:#EFF6FF;border-radius:12px;padding:14px;text-align:center;cursor:pointer">
+                <div id="typeFullDay" onclick="setSubmissionType('fullday')" style="border:2px solid var(--primary);background:var(--primary-light);border-radius:12px;padding:14px;text-align:center;cursor:pointer">
                   <div style="font-size:24px">✅</div>
-                  <div style="font-weight:700;font-size:13px;color:var(--primary);margin-top:4px">Full Day</div>
+                  <div style="font-weight:700;font-size:13px;color:var(--primary-dark);margin-top:4px">Full Day</div>
                   <div style="font-size:11px;color:var(--text3)">With screenshots</div>
                 </div>
                 <div id="typeHalfDay" onclick="setSubmissionType('halfday')" style="border:2px solid var(--border);background:var(--bg);border-radius:12px;padding:14px;text-align:center;cursor:pointer">
                   <div style="font-size:24px">🟡</div>
                   <div style="font-weight:700;font-size:13px;color:var(--text);margin-top:4px">Half Day</div>
                   <div style="font-size:11px;color:var(--text3)">With screenshots</div>
-                  <div id="halfDayCount" style="font-size:11px;font-weight:700;color:#D97706;margin-top:2px"></div>
+                  <div id="halfDayCount" style="font-size:11px;font-weight:700;color:var(--warning-dark);margin-top:2px"></div>
                 </div>
                 <div id="typeGT" onclick="setSubmissionType('gt')" style="border:2px solid var(--border);background:var(--bg);border-radius:12px;padding:14px;text-align:center;cursor:pointer">
                   <div style="font-size:24px">📗</div>
@@ -335,7 +356,7 @@
                   <div style="font-size:24px">🏖️</div>
                   <div style="font-weight:700;font-size:13px;color:var(--text);margin-top:4px">Leave</div>
                   <div style="font-size:11px;color:var(--text3)">No screenshots</div>
-                  <div id="leaveCount" style="font-size:11px;font-weight:700;color:#16A34A;margin-top:2px"></div>
+                  <div id="leaveCount" style="font-size:11px;font-weight:700;color:var(--success-dark);margin-top:2px"></div>
                 </div>
                 <div id="typeEmergency" onclick="setSubmissionType('emergency')" style="border:2px solid var(--border);background:var(--bg);border-radius:12px;padding:14px;text-align:center;cursor:pointer">
                   <div style="font-size:24px">🚑</div>
@@ -361,20 +382,20 @@
             </div>
 
             <div class="form-group">
-              <label class="form-label"><span id="timerUploadLabel">Study Timer Screenshot</span> <span style="color:var(--error)">*</span></label>
+              <label class="form-label"><span id="timerUploadLabel">Study Timer Screenshot</span> <span style="color:var(--error-dark)">*</span></label>
               <div class="upload-zone" id="timerUploadZone" onclick="triggerUpload('timerFile')">
                 <input type="file" id="timerFile" accept="image/*" onchange="handleFileUpload(this,'timerPreview','timerUploadZone')">
                 <div id="timerUploadContent">
                   <div style="font-size:28px;margin-bottom:8px">🖥</div>
                   <div style="font-weight:600;font-size:14px;color:var(--text);margin-bottom:4px" id="timerUploadHeading">Upload Timer Screenshot</div>
-                  <div style="font-size:12px;color:var(--text3)">PNG, JPG up to 10MB · Click or drag</div>
+                  <div style="font-size:12px;color:var(--text3)">PNG or JPG · Click or drag · Large photos are shrunk automatically</div>
                 </div>
                 <img id="timerPreview" class="upload-preview" style="display:none">
               </div>
             </div>
 
             <div class="form-group" id="questUploadGroup">
-              <label class="form-label">Questions Solved Screenshot <span style="color:var(--error)">*</span></label>
+              <label class="form-label">Questions Solved Screenshot <span style="color:var(--error-dark)">*</span></label>
               <div class="upload-zone" id="questUploadZone" onclick="triggerUpload('questFile')">
                 <input type="file" id="questFile" accept="image/*" onchange="handleFileUpload(this,'questPreview','questUploadZone')">
                 <div id="questUploadContent">
@@ -416,11 +437,11 @@
           <div class="card mb-16" style="border-left:3px solid var(--primary)">
             <div style="font-weight:700;font-size:14px;color:var(--text);margin-bottom:12px">📋 Submission Guidelines</div>
             <div style="display:flex;flex-direction:column;gap:10px">
-              <div style="display:flex;gap:10px;font-size:13px;color:var(--text2)"><span style="color:var(--primary);font-weight:700;flex-shrink:0">⏰</span>Submit between <strong id="guidelineWindow">10:00 AM – 10:00 PM</strong></div>
-              <div style="display:flex;gap:10px;font-size:13px;color:var(--text2)"><span style="color:var(--primary);font-weight:700;flex-shrink:0">🔁</span>Two submissions a day — the second is for fixing a wrong screenshot</div>
-              <div style="display:flex;gap:10px;font-size:13px;color:var(--text2)"><span style="color:var(--primary);font-weight:700;flex-shrink:0">📸</span>Timer screenshot must show today's date</div>
-              <div style="display:flex;gap:10px;font-size:13px;color:var(--text2)"><span style="color:var(--primary);font-weight:700;flex-shrink:0">📝</span>Questions screenshot must show solved problems</div>
-              <div style="display:flex;gap:10px;font-size:13px;color:var(--text2)"><span style="color:var(--primary);font-weight:700;flex-shrink:0">✅</span>Admin reviews and assigns status by 8 PM</div>
+              <div style="display:flex;gap:10px;font-size:13px;color:var(--text2)"><span style="color:var(--primary-dark);font-weight:700;flex-shrink:0">⏰</span>Submit between <strong id="guidelineWindow">10:00 AM – 10:00 PM</strong></div>
+              <div style="display:flex;gap:10px;font-size:13px;color:var(--text2)"><span style="color:var(--primary-dark);font-weight:700;flex-shrink:0">🔁</span>Two submissions a day — the second is for fixing a wrong screenshot</div>
+              <div style="display:flex;gap:10px;font-size:13px;color:var(--text2)"><span style="color:var(--primary-dark);font-weight:700;flex-shrink:0">📸</span>Timer screenshot must show today's date</div>
+              <div style="display:flex;gap:10px;font-size:13px;color:var(--text2)"><span style="color:var(--primary-dark);font-weight:700;flex-shrink:0">📝</span>Questions screenshot must show solved problems</div>
+              <div style="display:flex;gap:10px;font-size:13px;color:var(--text2)"><span style="color:var(--primary-dark);font-weight:700;flex-shrink:0">✅</span>Admin reviews and assigns status by 8 PM</div>
             </div>
           </div>
 
@@ -472,7 +493,7 @@
 
           <div class="timer-face mb-24">
             <svg width="260" height="260" viewBox="0 0 260 260">
-              <circle cx="130" cy="130" r="116" fill="none" stroke="#E2E8F0" stroke-width="10"/>
+              <circle cx="130" cy="130" r="116" fill="none" style="stroke:var(--border)" stroke-width="10"/>
               <circle id="timerRing" cx="130" cy="130" r="116" fill="none" stroke="#3B82F6" stroke-width="10"
                 stroke-dasharray="728.97" stroke-dashoffset="728.97" stroke-linecap="round"
                 style="transition:stroke-dashoffset 1s linear"/>
@@ -515,7 +536,7 @@
         <div class="card">
           <div class="section-heading">Your Standing</div>
           <div style="text-align:center;padding:20px 0">
-            <div style="font-family:var(--display);font-size:64px;font-weight:600;color:var(--primary);line-height:1" id="myRankBig">#—</div>
+            <div style="font-family:var(--display);font-size:64px;font-weight:600;color:var(--primary-dark);line-height:1" id="myRankBig">#—</div>
             <div style="font-size:14px;color:var(--text2);margin-top:8px" id="myRankSub">out of all students</div>
             <div class="divider"></div>
             <div class="grid g2" style="gap:12px;text-align:left;margin-top:12px">
@@ -525,7 +546,7 @@
               </div>
               <div style="background:var(--bg);border-radius:var(--r2);padding:12px">
                 <div class="text-xs text-muted fw-600" style="text-transform:uppercase;letter-spacing:0.5px;margin-bottom:3px">Streak</div>
-                <div style="font-family:var(--display);font-size:20px;font-weight:600;color:var(--warning)" id="myStreakLb">0 days</div>
+                <div style="font-family:var(--display);font-size:20px;font-weight:600;color:var(--warning-dark)" id="myStreakLb">0 days</div>
               </div>
               <div style="background:var(--bg);border-radius:var(--r2);padding:12px">
                 <div class="text-xs text-muted fw-600" style="text-transform:uppercase;letter-spacing:0.5px;margin-bottom:3px">Completed</div>
@@ -533,7 +554,7 @@
               </div>
               <div style="background:var(--bg);border-radius:var(--r2);padding:12px">
                 <div class="text-xs text-muted fw-600" style="text-transform:uppercase;letter-spacing:0.5px;margin-bottom:3px">Fines</div>
-                <div style="font-family:var(--display);font-size:20px;font-weight:600;color:var(--error)" id="myFines">0</div>
+                <div style="font-family:var(--display);font-size:20px;font-weight:600;color:var(--error-dark)" id="myFines">0</div>
               </div>
             </div>
           </div>
@@ -548,7 +569,7 @@
     <!-- ANALYTICS -->
     <div class="page" id="page-analytics">
       <div class="grid g4 mb-16">
-        <div class="stat-card" style="cursor:pointer" onclick="openAnalyticsModal('consistency')"><div class="stat-icon-wrap" style="background:var(--primary-light)">📈</div><div class="stat-label">Consistency</div><div class="stat-val" id="aConsist">—%</div><div class="stat-sub" style="color:var(--primary)">Days submitted / total</div></div>
+        <div class="stat-card" style="cursor:pointer" onclick="openAnalyticsModal('consistency')"><div class="stat-icon-wrap" style="background:var(--primary-light)">📈</div><div class="stat-label">Consistency</div><div class="stat-val" id="aConsist">—%</div><div class="stat-sub" style="color:var(--primary-dark)">Days submitted / total</div></div>
         <div class="stat-card" style="cursor:pointer" onclick="openAnalyticsModal('avghrs')"><div class="stat-icon-wrap" style="background:var(--success-light)">⚡</div><div class="stat-label">Avg Daily Hours</div><div class="stat-val" id="aAvgHrs">—h</div><div class="stat-sub" style="color:var(--success-dark)">Study average</div></div>
         <div class="stat-card" style="cursor:pointer" onclick="openAnalyticsModal('goal')"><div class="stat-icon-wrap" style="background:var(--warning-light)">🎯</div><div class="stat-label">Goal Hit Rate</div><div class="stat-val" id="aGoal">—%</div><div class="stat-sub" style="color:var(--warning-dark)">Days ≥ 4h</div></div>
         <div class="stat-card" style="cursor:pointer" onclick="openAnalyticsModal('fines')"><div class="stat-icon-wrap" style="background:var(--error-light)">🔴</div><div class="stat-label">Total Fines</div><div class="stat-val" id="aFines">—</div><div class="stat-sub" style="color:var(--error-dark)">Missed days</div></div>
@@ -675,7 +696,7 @@
     </div>
 
     <!-- Popover for setting a cell's status -->
-    <div id="cellMenu" style="display:none;position:fixed;z-index:400;background:#fff;border:1px solid var(--border);border-radius:12px;box-shadow:0 12px 32px rgba(0,0,0,.18);padding:8px;min-width:190px"></div>
+    <div id="cellMenu" style="display:none;position:fixed;z-index:400;background:var(--white);border:1px solid var(--border);border-radius:12px;box-shadow:0 12px 32px rgba(0,0,0,.18);padding:8px;min-width:190px"></div>
 
     <!-- ADMIN: USER MANAGER -->
     <div class="page" id="page-admin-users">
@@ -760,53 +781,53 @@
 <script src="app.js"></script>
   <!-- Global Stat Detail Modal -->
   <div id="statModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:2000;align-items:center;justify-content:center" onclick="if(event.target===this)closeStatModal()">
-    <div style="background:#ffffff;border-radius:16px;padding:32px;width:90%;max-width:480px;box-shadow:0 20px 60px rgba(0,0,0,0.3);position:relative;max-height:80vh;overflow-y:auto;backdrop-filter:none">
-      <button onclick="closeStatModal()" style="position:absolute;top:16px;right:16px;background:none;border:none;font-size:20px;cursor:pointer;color:#94a3b8">✕</button>
+    <div style="background:var(--white);border-radius:16px;padding:32px;width:90%;max-width:480px;box-shadow:0 20px 60px rgba(0,0,0,0.3);position:relative;max-height:80vh;overflow-y:auto;backdrop-filter:none">
+      <button onclick="closeStatModal()" style="position:absolute;top:16px;right:16px;background:none;border:none;font-size:20px;cursor:pointer;color:var(--text3)">✕</button>
       <div id="statModalContent"></div>
     </div>
   </div>
 
   <!-- Profile Drawer -->
   <div id="profileDrawer" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:2100" onclick="if(event.target===this)closeProfileDrawer()">
-    <div style="position:fixed;top:0;right:0;width:380px;max-width:90vw;height:100vh;background:#ffffff;box-shadow:-12px 0 40px rgba(0,0,0,0.18);overflow-y:auto;animation:slideInRight 0.25s ease">
+    <div style="position:fixed;top:0;right:0;width:380px;max-width:90vw;height:100vh;background:var(--white);box-shadow:-12px 0 40px rgba(0,0,0,0.18);overflow-y:auto;animation:slideInRight 0.25s ease">
       <div style="padding:24px 24px 0;display:flex;justify-content:space-between;align-items:center">
-        <div style="font-weight:700;font-size:18px;color:#111827">My Profile</div>
-        <button onclick="closeProfileDrawer()" style="background:none;border:none;font-size:22px;cursor:pointer;color:#94a3b8">✕</button>
+        <div style="font-weight:700;font-size:18px;color:var(--text)">My Profile</div>
+        <button onclick="closeProfileDrawer()" style="background:none;border:none;font-size:22px;cursor:pointer;color:var(--text3)">✕</button>
       </div>
       <div style="padding:24px">
-        <div style="display:flex;flex-direction:column;align-items:center;text-align:center;padding:20px 0 24px;border-bottom:1px solid #e5e7eb;margin-bottom:20px">
-          <div id="pdAvatar" style="width:80px;height:80px;border-radius:50%;background:#3B82F6;color:#fff;display:flex;align-items:center;justify-content:center;font-size:30px;font-weight:700;margin-bottom:14px">JD</div>
-          <div id="pdName" style="font-weight:700;font-size:20px;color:#111827">John Doe</div>
-          <div id="pdRole" style="color:#6b7280;font-size:13px;margin-top:4px">🎓 Student</div>
+        <div style="display:flex;flex-direction:column;align-items:center;text-align:center;padding:20px 0 24px;border-bottom:1px solid var(--border);margin-bottom:20px">
+          <div id="pdAvatar" style="width:80px;height:80px;border-radius:50%;background:var(--fill-primary);color:var(--on-fill);display:flex;align-items:center;justify-content:center;font-size:30px;font-weight:700;margin-bottom:14px">JD</div>
+          <div id="pdName" style="font-weight:700;font-size:20px;color:var(--text)">John Doe</div>
+          <div id="pdRole" style="color:var(--text2);font-size:13px;margin-top:4px">🎓 Student</div>
         </div>
 
         <div style="margin-bottom:16px">
-          <div style="font-size:11px;color:#9ca3af;text-transform:uppercase;letter-spacing:0.5px;font-weight:700;margin-bottom:6px">Email</div>
-          <div id="pdEmail" style="font-size:14px;color:#111827;font-weight:500;background:#F9FAFB;padding:10px 12px;border-radius:8px;word-break:break-all">—</div>
+          <div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;font-weight:700;margin-bottom:6px">Email</div>
+          <div id="pdEmail" style="font-size:14px;color:var(--text);font-weight:500;background:var(--bg2);padding:10px 12px;border-radius:8px;word-break:break-all">—</div>
         </div>
 
         <div style="margin-bottom:16px">
-          <div style="font-size:11px;color:#9ca3af;text-transform:uppercase;letter-spacing:0.5px;font-weight:700;margin-bottom:6px">Student Type</div>
-          <div id="pdType" style="font-size:14px;color:#111827;font-weight:600;background:#F9FAFB;padding:10px 12px;border-radius:8px">🎓 Full-time Aspirant</div>
+          <div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;font-weight:700;margin-bottom:6px">Student Type</div>
+          <div id="pdType" style="font-size:14px;color:var(--text);font-weight:600;background:var(--bg2);padding:10px 12px;border-radius:8px">🎓 Full-time Aspirant</div>
         </div>
 
         <div style="margin-bottom:16px">
-          <div style="font-size:11px;color:#9ca3af;text-transform:uppercase;letter-spacing:0.5px;font-weight:700;margin-bottom:6px">Registered On</div>
-          <div id="pdJoined" style="font-size:14px;color:#111827;font-weight:500;background:#F9FAFB;padding:10px 12px;border-radius:8px">—</div>
+          <div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;font-weight:700;margin-bottom:6px">Registered On</div>
+          <div id="pdJoined" style="font-size:14px;color:var(--text);font-weight:500;background:var(--bg2);padding:10px 12px;border-radius:8px">—</div>
         </div>
 
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:24px">
-          <div style="background:#F0FDF4;padding:14px;border-radius:10px;text-align:center">
-            <div style="font-size:22px;font-weight:700;color:#16A34A" id="pdStreak">0</div>
-            <div style="font-size:11px;color:#16A34A;font-weight:600">🔥 Day Streak</div>
+          <div style="background:var(--success-light);padding:14px;border-radius:10px;text-align:center">
+            <div style="font-size:22px;font-weight:700;color:var(--success-dark)" id="pdStreak">0</div>
+            <div style="font-size:11px;color:var(--success-dark);font-weight:600">🔥 Day Streak</div>
           </div>
-          <div style="background:#FFFBEB;padding:14px;border-radius:10px;text-align:center">
-            <div style="font-size:22px;font-weight:700;color:#D97706" id="pdHours">0h</div>
-            <div style="font-size:11px;color:#D97706;font-weight:600">⏱ Total Hours</div>
+          <div style="background:var(--warning-light);padding:14px;border-radius:10px;text-align:center">
+            <div style="font-size:22px;font-weight:700;color:var(--warning-dark)" id="pdHours">0h</div>
+            <div style="font-size:11px;color:var(--warning-dark);font-weight:600">⏱ Total Hours</div>
           </div>
         </div>
 
-        <button onclick="doLogout()" style="width:100%;background:#FEE2E2;color:#DC2626;border:none;padding:13px;border-radius:10px;font-weight:700;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px">
+        <button onclick="doLogout()" style="width:100%;background:var(--error-light);color:var(--error-dark);border:none;padding:13px;border-radius:10px;font-weight:700;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
           Logout
         </button>

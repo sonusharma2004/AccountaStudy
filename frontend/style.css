@@ -4,13 +4,29 @@
   --bg:#F8FAFC;--bg2:#F1F5F9;--bg3:#E2E8F0;
   --white:#FFFFFF;
   --border:#E2E8F0;--border2:#CBD5E1;
-  --text:#0F172A;--text2:#475569;--text3:#94A3B8;
+  --text:#0F172A;--text2:#475569;--text3:#5B6B80;
   --primary:#3B82F6;--primary-light:#EFF6FF;--primary-dark:#1D4ED8;
   --success:#22C55E;--success-light:#F0FDF4;--success-dark:#15803D;
   --warning:#F59E0B;--warning-light:#FFFBEB;--warning-dark:#B45309;
   --error:#EF4444;--error-light:#FEF2F2;--error-dark:#B91C1C;
-  --purple:#8B5CF6;--purple-light:#F5F3FF;
+  --purple:#8B5CF6;--purple-light:#F5F3FF;--purple-dark:#6D28D9;
   --cyan:#06B6D4;--cyan-light:#ECFEFF;
+  /* Solid fills that carry white label text. The plain --primary/--success
+     hues are tuned to sit *on* a surface, and are too light to put text on;
+     these are the same hues darkened until white clears 4.5:1. Identical in
+     both themes, since a saturated mid-tone reads on either background. */
+  --fill-primary:#2563EB;--fill-success:#15803D;--fill-warning:#B45309;--fill-error:#DC2626;
+  --fill-primary-hover:#1D4ED8;--fill-success-hover:#166534;
+  --on-fill:#FFFFFF;
+  /* One pair per attendance status, so the register, the calendar, the badges
+     and the JS legend all read the same colour and both themes stay in step. */
+  --st-completed-bg:#DCFCE7;--st-completed-fg:#15803D;--st-completed-br:#BBF7D0;
+  --st-gt-bg:#166534;--st-gt-fg:#FFFFFF;--st-gt-br:#166534;
+  --st-halfday-bg:#F3E8FF;--st-halfday-fg:#7E22CE;--st-halfday-br:#E9D5FF;
+  --st-leave-bg:#374151;--st-leave-fg:#FFFFFF;--st-leave-br:#374151;
+  --st-emergency-bg:#1D4ED8;--st-emergency-fg:#FFFFFF;--st-emergency-br:#1D4ED8;
+  --st-fine-bg:#DC2626;--st-fine-fg:#FFFFFF;--st-fine-br:#DC2626;
+  --st-pending-bg:#DBEAFE;--st-pending-fg:#1D4ED8;--st-pending-br:#BFDBFE;
   --r:8px;--r2:12px;--r3:16px;--r4:24px;
   --font:'Plus Jakarta Sans',sans-serif;
   --display:'Fraunces',serif;
@@ -19,6 +35,38 @@
   --shadow-md:0 4px 12px rgba(0,0,0,0.08),0 2px 6px rgba(0,0,0,0.04);
   --shadow-lg:0 12px 32px rgba(0,0,0,0.10),0 4px 12px rgba(0,0,0,0.05);
   --trans:all 0.2s cubic-bezier(0.4,0,0.2,1);
+  --overlay:rgba(15,23,42,0.45);
+  color-scheme:light;
+}
+
+/* ===================== DARK THEME =====================
+   Only the tokens change. Anything built from them follows on its own, which
+   is why the rules below are the whole theme rather than a parallel stylesheet.
+   Set on <html> by the inline script in index.html before first paint. */
+[data-theme="dark"]{
+  --bg:#0A0F1C;--bg2:#1B2438;--bg3:#243049;
+  --white:#131B2C;
+  --border:#222E45;--border2:#35455F;
+  --text:#E8EDF5;--text2:#A3B0C2;--text3:#8A99B2;
+  --primary:#60A5FA;--primary-light:#17253F;--primary-dark:#93C5FD;
+  --success:#4ADE80;--success-light:#11291C;--success-dark:#6EE7A8;
+  --warning:#FBBF24;--warning-light:#2C2211;--warning-dark:#FCD34D;
+  --error:#F87171;--error-light:#2C1519;--error-dark:#FCA5A5;
+  --purple:#A78BFA;--purple-light:#211A38;--purple-dark:#C4B5FD;
+  --cyan:#22D3EE;--cyan-light:#0D2A33;
+  --st-completed-bg:#14532D;--st-completed-fg:#86EFAC;--st-completed-br:#1C6B3C;
+  --st-gt-bg:#22C55E;--st-gt-fg:#052E16;--st-gt-br:#22C55E;
+  --st-halfday-bg:#3B1D6E;--st-halfday-fg:#DDD6FE;--st-halfday-br:#4E2A8A;
+  --st-leave-bg:#475569;--st-leave-fg:#F1F5F9;--st-leave-br:#475569;
+  --st-emergency-bg:#2563EB;--st-emergency-fg:#EFF6FF;--st-emergency-br:#2563EB;
+  --st-fine-bg:#B91C1C;--st-fine-fg:#FEE2E2;--st-fine-br:#B91C1C;
+  --st-pending-bg:#1B3556;--st-pending-fg:#93C5FD;--st-pending-br:#24466F;
+  /* Shadows have to carry more weight to read against a dark surface. */
+  --shadow:0 1px 3px rgba(0,0,0,0.5),0 1px 2px rgba(0,0,0,0.4);
+  --shadow-md:0 4px 12px rgba(0,0,0,0.55),0 2px 6px rgba(0,0,0,0.4);
+  --shadow-lg:0 12px 32px rgba(0,0,0,0.6),0 4px 12px rgba(0,0,0,0.45);
+  --overlay:rgba(2,6,16,0.7);
+  color-scheme:dark;
 }
 html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--font);font-size:14px;line-height:1.6;overflow:hidden}
 ::-webkit-scrollbar{width:5px;height:5px}
@@ -42,25 +90,25 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 
 /* ===================== SIDEBAR ===================== */
 .logo{padding:20px 20px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px}
-.logo-icon{width:36px;height:36px;background:var(--primary);border-radius:10px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:16px;color:#fff;font-family:var(--display);flex-shrink:0}
+.logo-icon{width:36px;height:36px;background:var(--fill-primary);border-radius:10px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:16px;color:var(--on-fill);font-family:var(--display);flex-shrink:0}
 .logo-name{font-family:var(--display);font-weight:700;font-size:17px;color:var(--text);letter-spacing:-0.3px}
-.logo-name span{color:var(--primary)}
+.logo-name span{color:var(--primary-dark)}
 
 .nav-group-label{padding:14px 16px 6px;font-size:10.5px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--text3)}
 .nav-item{display:flex;align-items:center;gap:10px;padding:9px 16px;margin:1px 8px;border-radius:var(--r);cursor:pointer;color:var(--text2);font-size:13.5px;font-weight:500;transition:var(--trans)}
 .nav-item:hover{background:var(--bg);color:var(--text)}
-.nav-item.active{background:var(--primary-light);color:var(--primary);font-weight:600}
+.nav-item.active{background:var(--primary-light);color:var(--primary-dark);font-weight:600}
 .nav-item svg{width:16px;height:16px;flex-shrink:0}
-.nav-badge{margin-left:auto;background:var(--error);color:#fff;font-size:10px;font-weight:700;padding:1px 6px;border-radius:10px}
-.nav-badge.amber{background:var(--warning)}
+.nav-badge{margin-left:auto;background:var(--fill-error);color:var(--on-fill);font-size:10px;font-weight:700;padding:1px 6px;border-radius:10px}
+.nav-badge.amber{background:var(--fill-warning)}
 
 .user-footer{margin-top:auto;padding:12px 12px 16px;border-top:1px solid var(--border)}
 .user-pill{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:var(--r2);background:var(--bg);cursor:pointer;transition:var(--trans)}
 .user-pill:hover{background:var(--bg2)}
-.u-avatar{width:32px;height:32px;border-radius:8px;background:var(--primary);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px;color:#fff;flex-shrink:0}
+.u-avatar{width:32px;height:32px;border-radius:8px;background:var(--fill-primary);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px;color:var(--on-fill);flex-shrink:0}
 .u-name{font-weight:600;font-size:13px;color:var(--text)}
 .u-role{font-size:11px;color:var(--text3)}
-.u-streak{margin-left:auto;font-size:13px;font-weight:600;color:var(--warning)}
+.u-streak{margin-left:auto;font-size:13px;font-weight:600;color:var(--warning-dark)}
 
 /* ===================== TOPBAR ===================== */
 .topbar{padding:14px 32px;border-bottom:1px solid var(--border);background:var(--white);display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
@@ -70,14 +118,14 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 
 /* ===================== BUTTONS ===================== */
 .btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:var(--r);border:none;cursor:pointer;font-family:var(--font);font-size:13.5px;font-weight:600;transition:var(--trans)}
-.btn-primary{background:var(--primary);color:#fff}
-.btn-primary:hover{background:var(--primary-dark);transform:translateY(-1px);box-shadow:var(--shadow-md)}
-.btn-success{background:var(--success);color:#fff}
-.btn-success:hover{background:var(--success-dark)}
+.btn-primary{background:var(--fill-primary);color:var(--on-fill)}
+.btn-primary:hover{background:var(--fill-primary-hover);transform:translateY(-1px);box-shadow:var(--shadow-md)}
+.btn-success{background:var(--fill-success);color:var(--on-fill)}
+.btn-success:hover{background:var(--fill-success-hover)}
 .btn-ghost{background:transparent;color:var(--text2);border:1.5px solid var(--border2)}
 .btn-ghost:hover{background:var(--bg);color:var(--text);border-color:var(--border2)}
-.btn-danger{background:var(--error-light);color:var(--error);border:1px solid rgba(239,68,68,0.2)}
-.btn-danger:hover{background:var(--error);color:#fff}
+.btn-danger{background:var(--error-light);color:var(--error-dark);border:1px solid rgba(239,68,68,0.2)}
+.btn-danger:hover{background:var(--fill-error);color:var(--on-fill)}
 .btn-sm{padding:6px 12px;font-size:12.5px}
 .btn-icon{width:36px;height:36px;padding:0;justify-content:center;border-radius:var(--r);background:var(--bg);border:1.5px solid var(--border);color:var(--text2)}
 .btn-icon:hover{background:var(--bg2);color:var(--text)}
@@ -117,9 +165,9 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 .s-halfday{background:var(--warning-light);color:var(--warning-dark)}
 .s-leave{background:var(--bg2);color:var(--text2)}
 .s-fine{background:var(--error-light);color:var(--error-dark)}
-.s-pending{background:#F5F3FF;color:#6D28D9}
-.s-gt{background:#166534;color:#fff}
-.s-emergency{background:#1D4ED8;color:#fff}
+.s-pending{background:var(--purple-light);color:var(--purple-dark)}
+.s-gt{background:var(--st-gt-bg);color:var(--st-gt-fg)}
+.s-emergency{background:var(--st-emergency-bg);color:var(--st-emergency-fg)}
 
 /* ===================== FORM ===================== */
 .form-group{margin-bottom:18px}
@@ -189,7 +237,7 @@ body.focus-mode #focus-quote{display:block}
 .toast-warning{border-left:3px solid var(--warning)}
 
 /* ===================== MODAL ===================== */
-.overlay{position:fixed;inset:0;background:rgba(15,23,42,0.45);backdrop-filter:blur(4px);z-index:200;display:none;align-items:center;justify-content:center}
+.overlay{position:fixed;inset:0;background:var(--overlay);backdrop-filter:blur(4px);z-index:200;display:none;align-items:center;justify-content:center}
 .overlay.open{display:flex;animation:fadeIn .2s ease}
 @keyframes fadeIn{from{opacity:0}to{opacity:1}}
 .modal{background:var(--white);border-radius:var(--r4);padding:32px;width:min(560px,92vw);box-shadow:var(--shadow-lg);animation:modalUp .25s cubic-bezier(0.34,1.56,0.64,1)}
@@ -227,8 +275,8 @@ body.focus-mode #focus-quote{display:block}
 .so-halfday{background:var(--warning-light);color:var(--warning-dark);border-color:rgba(245,158,11,0.3)}
 .so-leave{background:var(--bg2);color:var(--text2);border-color:var(--border2)}
 .so-fine{background:var(--error-light);color:var(--error-dark);border-color:rgba(239,68,68,0.3)}
-.so-gt{background:#DCFCE7;color:#166534;border-color:rgba(22,101,52,0.3)}
-.so-emergency{background:#DBEAFE;color:#1D4ED8;border-color:rgba(29,78,216,0.3)}
+.so-gt{background:var(--st-completed-bg);color:var(--st-completed-fg);border-color:rgba(22,101,52,0.3)}
+.so-emergency{background:var(--st-pending-bg);color:var(--st-pending-fg);border-color:rgba(29,78,216,0.3)}
 .status-opt.selected{box-shadow:0 0 0 2px currentColor}
 
 /* ===================== CHART ===================== */
@@ -240,7 +288,7 @@ body.focus-mode #focus-quote{display:block}
 
 /* ===================== PILLS ===================== */
 .pill{display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:600}
-.pill-blue{background:var(--primary-light);color:var(--primary)}
+.pill-blue{background:var(--primary-light);color:var(--primary-dark)}
 .pill-green{background:var(--success-light);color:var(--success-dark)}
 .pill-amber{background:var(--warning-light);color:var(--warning-dark)}
 .pill-red{background:var(--error-light);color:var(--error-dark)}
@@ -269,7 +317,7 @@ body.focus-mode #focus-quote{display:block}
 
 /* ===================== DEADLINE BANNER ===================== */
 .deadline-banner{padding:12px 20px;border-radius:var(--r2);border:1.5px solid;display:flex;align-items:center;gap:12px;margin-bottom:20px}
-.deadline-banner.active{background:#FFFBEB;border-color:rgba(245,158,11,0.4)}
+.deadline-banner.active{background:var(--warning-light);border-color:rgba(245,158,11,0.4)}
 .deadline-banner.missed{background:var(--error-light);border-color:rgba(239,68,68,0.3)}
 .deadline-banner.done{background:var(--success-light);border-color:rgba(34,197,94,0.3)}
 
@@ -289,29 +337,29 @@ body.focus-mode #focus-quote{display:block}
    while the month scrolls sideways underneath them. */
 .register-scroll{overflow:auto;max-height:70vh;border:1px solid var(--border);border-radius:var(--r2)}
 .register-table{border-collapse:separate;border-spacing:0;font-size:12px;width:max-content;min-width:100%}
-.register-table th,.register-table td{border-right:1px solid var(--border);border-bottom:1px solid var(--border);padding:0;background:#fff}
+.register-table th,.register-table td{border-right:1px solid var(--border);border-bottom:1px solid var(--border);padding:0;background:var(--white)}
 .register-table thead th{position:sticky;top:0;z-index:3;background:var(--bg);font-weight:700;color:var(--text2);
   padding:7px 6px;text-align:center;white-space:nowrap}
 .register-table th.rg-name,.register-table td.rg-name{position:sticky;left:0;z-index:2;min-width:190px;max-width:190px;
-  text-align:left;padding:7px 10px;background:#fff;box-shadow:1px 0 0 var(--border)}
+  text-align:left;padding:7px 10px;background:var(--white);box-shadow:1px 0 0 var(--border)}
 .register-table thead th.rg-name{z-index:4;background:var(--bg)}
 .register-table td.rg-name{font-weight:600;color:var(--text)}
 .rg-sub{font-size:11px;color:var(--text3);font-weight:500}
 .rg-meta{min-width:52px;text-align:center;padding:7px 6px;color:var(--text2);white-space:nowrap}
 .rg-day{min-width:40px;height:34px;text-align:center;cursor:pointer;transition:box-shadow .12s}
 .rg-day:hover{box-shadow:inset 0 0 0 2px var(--primary)}
-.rg-today{background:#FFFBEB}
-.rg-weekend{background:#FAFAFA}
+.rg-today{background:var(--warning-light)}
+.rg-weekend{background:var(--bg2)}
 .rg-chip{display:block;width:100%;height:100%;line-height:34px;font-size:11px;font-weight:700;letter-spacing:.2px}
-.rg-completed{background:#DCFCE7;color:#15803D}
-.rg-gt{background:#166534;color:#fff}
-.rg-halfday{background:#F3E8FF;color:#7E22CE}
-.rg-leave{background:#374151;color:#fff}
-.rg-emergency{background:#1D4ED8;color:#fff}
-.rg-fine{background:#DC2626;color:#fff}
-.rg-pending{background:#DBEAFE;color:#1D4ED8}
+.rg-completed{background:var(--st-completed-bg);color:var(--st-completed-fg)}
+.rg-gt{background:var(--st-gt-bg);color:var(--st-gt-fg)}
+.rg-halfday{background:var(--st-halfday-bg);color:var(--st-halfday-fg)}
+.rg-leave{background:var(--st-leave-bg);color:var(--st-leave-fg)}
+.rg-emergency{background:var(--st-emergency-bg);color:var(--st-emergency-fg)}
+.rg-fine{background:var(--st-fine-bg);color:var(--st-fine-fg)}
+.rg-pending{background:var(--st-pending-bg);color:var(--st-pending-fg)}
 .rg-late-dot{position:relative}
-.rg-late-dot::after{content:'';position:absolute;top:2px;right:2px;width:5px;height:5px;border-radius:50%;background:#DC2626}
+.rg-late-dot::after{content:'';position:absolute;top:2px;right:2px;width:5px;height:5px;border-radius:50%;background:var(--error)}
 .rg-deposit{cursor:pointer;font-weight:700;color:var(--text)}
 .rg-deposit:hover{text-decoration:underline}
 .rg-legend-item{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;color:var(--text2)}
@@ -324,27 +372,27 @@ body.focus-mode #focus-quote{display:block}
 .cal-weekdays div{text-align:center;font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px}
 .cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
 .cal-cell{aspect-ratio:1;border-radius:10px;border:1px solid var(--border);display:flex;flex-direction:column;
-  align-items:center;justify-content:center;gap:2px;background:#fff;min-height:54px}
+  align-items:center;justify-content:center;gap:2px;background:var(--white);min-height:54px}
 .cal-cell.empty{border:none;background:transparent}
 .cal-cell.future{opacity:.35}
 .cal-cell.today{box-shadow:0 0 0 2px var(--primary)}
 .cal-date{font-size:11px;font-weight:700;color:var(--text3)}
 .cal-mark{font-size:15px;font-weight:800;line-height:1}
-.cal-completed{background:#DCFCE7;border-color:#BBF7D0}
-.cal-completed .cal-date{color:#15803D}
-.cal-gt{background:#166534;border-color:#166534}
-.cal-gt .cal-date,.cal-gt .cal-mark{color:#fff}
-.cal-halfday{background:#F3E8FF;border-color:#E9D5FF}
-.cal-halfday .cal-date{color:#7E22CE}
-.cal-leave{background:#374151;border-color:#374151}
-.cal-leave .cal-date,.cal-leave .cal-mark{color:#fff}
-.cal-emergency{background:#1D4ED8;border-color:#1D4ED8}
-.cal-emergency .cal-date,.cal-emergency .cal-mark{color:#fff}
-.cal-fine{background:#DC2626;border-color:#DC2626}
-.cal-fine .cal-date,.cal-fine .cal-mark{color:#fff}
-.cal-pending{background:#DBEAFE;border-color:#BFDBFE}
-.cal-pending .cal-date{color:#1D4ED8}
-.cal-late::after{content:'';position:absolute;top:4px;right:4px;width:6px;height:6px;border-radius:50%;background:#DC2626}
+.cal-completed{background:var(--st-completed-bg);border-color:var(--st-completed-br)}
+.cal-completed .cal-date,.cal-completed .cal-mark{color:var(--st-completed-fg)}
+.cal-gt{background:var(--st-gt-bg);border-color:var(--st-gt-br)}
+.cal-gt .cal-date,.cal-gt .cal-mark{color:var(--st-gt-fg)}
+.cal-halfday{background:var(--st-halfday-bg);border-color:var(--st-halfday-br)}
+.cal-halfday .cal-date,.cal-halfday .cal-mark{color:var(--st-halfday-fg)}
+.cal-leave{background:var(--st-leave-bg);border-color:var(--st-leave-br)}
+.cal-leave .cal-date,.cal-leave .cal-mark{color:var(--st-leave-fg)}
+.cal-emergency{background:var(--st-emergency-bg);border-color:var(--st-emergency-br)}
+.cal-emergency .cal-date,.cal-emergency .cal-mark{color:var(--st-emergency-fg)}
+.cal-fine{background:var(--st-fine-bg);border-color:var(--st-fine-br)}
+.cal-fine .cal-date,.cal-fine .cal-mark{color:var(--st-fine-fg)}
+.cal-pending{background:var(--st-pending-bg);border-color:var(--st-pending-br)}
+.cal-pending .cal-date,.cal-pending .cal-mark{color:var(--st-pending-fg)}
+.cal-late::after{content:'';position:absolute;top:4px;right:4px;width:6px;height:6px;border-radius:50%;background:var(--error)}
 .cal-cell{position:relative}
 .cal-count-row{display:flex;align-items:center;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border);font-size:13px}
 .cal-count-row:last-child{border-bottom:none}

@@ -22,6 +22,58 @@ function dataURLtoBlob(dataurl) {
   return new Blob([u8arr], { type: mime });
 }
 
+// ===================== THEME =====================
+// The <head> script already applied the theme; this only keeps the button,
+// the charts and the browser UI in sync once the page is interactive.
+
+function currentTheme(){
+  return document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
+}
+
+/** Read a CSS token so canvas-drawn charts match the stylesheet. */
+function themeToken(name){
+  return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+}
+
+function applyTheme(theme, {persist = true} = {}){
+  const dark = theme === 'dark';
+  document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
+  if(persist){
+    try{ localStorage.setItem('theme', dark ? 'dark' : 'light'); }catch(e){}
+  }
+  // Show the icon for the theme you would switch *to*, the usual convention.
+  // Both the topbar and the login screen carry a toggle.
+  ['themeIconSun','themeIconSunAuth'].forEach(id=>{
+    const el = document.getElementById(id);
+    if(el) el.style.display = dark ? 'none' : '';
+  });
+  ['themeIconMoon','themeIconMoonAuth'].forEach(id=>{
+    const el = document.getElementById(id);
+    if(el) el.style.display = dark ? '' : 'none';
+  });
+  const btn = document.getElementById('themeBtn');
+  if(btn) btn.title = dark ? 'Switch to light theme' : 'Switch to dark theme';
+  // Chart.js paints to a canvas, so it cannot inherit the new tokens.
+  if(S.charts && Object.keys(S.charts).length) initCharts();
+}
+
+function toggleTheme(){
+  applyTheme(currentTheme() === 'dark' ? 'light' : 'dark');
+}
+
+function initTheme(){
+  applyTheme(currentTheme(), {persist: false});
+  // Follow the OS only while the user has not made a choice of their own.
+  const mq = window.matchMedia('(prefers-color-scheme: dark)');
+  const onSystemChange = e => {
+    let saved = null;
+    try{ saved = localStorage.getItem('theme'); }catch(err){}
+    if(!saved) applyTheme(e.matches ? 'dark' : 'light', {persist: false});
+  };
+  if(mq.addEventListener) mq.addEventListener('change', onSystemChange);
+  else if(mq.addListener) mq.addListener(onSystemChange);
+}
+
 const S = {
   user: null,
   submissions: [],
@@ -73,10 +125,10 @@ function setRegType(type){
   const ft = document.getElementById('regTypeFulltime');
   const it = document.getElementById('regTypeIntern');
   if(type==='fulltime'){
-    ft.style.border='2px solid var(--primary)'; ft.style.background='#EFF6FF';
+    ft.style.border='2px solid var(--primary)'; ft.style.background='var(--primary-light)';
     it.style.border='2px solid var(--border)'; it.style.background='var(--bg)';
   } else {
-    it.style.border='2px solid var(--primary)'; it.style.background='#EFF6FF';
+    it.style.border='2px solid var(--primary)'; it.style.background='var(--primary-light)';
     ft.style.border='2px solid var(--border)'; ft.style.background='var(--bg)';
   }
 }
@@ -122,7 +174,7 @@ async function initSignupMode() {
 function openProfileDrawer(){
   const u = S.user; if(!u) return;
   const avatar = u.avatar || (u.name ? u.name[0].toUpperCase() : '?');
-  const color = u.color || '#3B82F6';
+  const color = u.color || 'var(--fill-primary)';
   document.getElementById('pdAvatar').textContent = avatar;
   document.getElementById('pdAvatar').style.background = color;
   document.getElementById('pdName').textContent = u.name || '—';
@@ -193,13 +245,14 @@ async function loginUser(user){
   document.getElementById('authScreen').style.display='none';
   document.getElementById('app').style.display='flex';
   const avatar = user.avatar || (user.name ? user.name[0].toUpperCase() : '?');
-  const color = user.color || '#3B82F6';
+  const color = user.color || 'var(--fill-primary)';
   document.getElementById('sbAvatar').textContent=avatar;
   document.getElementById('sbAvatar').style.background=color;
   document.getElementById('sbName').textContent=user.name;
   document.getElementById('sbRole').textContent=user.role==='admin'?'⚡ Administrator':'🎓 Student';
   document.getElementById('sbStreak').textContent='🔥 '+(user.streak||0);
   if(user.role==='admin'){
+    document.getElementById('navGroupAdmin').style.display='';
     document.getElementById('nav-admin-verify').style.display='flex';
     document.getElementById('nav-admin-register').style.display='flex';
     document.getElementById('nav-admin-users').style.display='flex';
@@ -306,6 +359,8 @@ const pageMeta={
   analytics:{title:'My Analytics',sub:'Deep dive into your performance'},
   'admin-verify':{title:'Verify Submissions',sub:'Review and assign student status'},
   'admin-users':{title:'Student Manager',sub:'Manage all enrolled students'},
+  'admin-register':{title:'Monthly Register',sub:'Every student, every day, at a glance'},
+  'my-register':{title:'My Register',sub:'Your attendance and deposit for the month'},
 };
 
 // Pages that only make sense for someone who studies. An admin has no sessions
@@ -401,7 +456,7 @@ async function renderAdminDashboard(){
   document.getElementById('aMissingCount').textContent=missing.length;
   document.getElementById('aMissingList').innerHTML = missing.length
     ? missing.map(u=>`<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border)">
-        <div style="width:28px;height:28px;border-radius:7px;background:#94A3B8;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff">${u.avatar||'?'}</div>
+        <div style="width:28px;height:28px;border-radius:7px;background:var(--fill-primary);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:var(--on-fill)">${u.avatar||'?'}</div>
         <div style="flex:1;min-width:0">
           <div style="font-weight:600;font-size:13px;color:var(--text)">${u.name}</div>
           <div style="font-size:11.5px;color:var(--text3);word-break:break-all">${u.email||''}</div>
@@ -436,7 +491,7 @@ function renderDashboard(){
   if(!todaySub||todaySub.status==='pending'){
     const w=S.gate?.window;
     const when=w ? `Submit between ${w.opensAt} and ${w.closesAt}` : 'Submit before the deadline';
-    banner.innerHTML=`<div class="deadline-banner active"><span style="font-size:18px">📸</span><div style="flex:1"><div style="font-weight:700;font-size:13.5px;color:var(--warning-dark)">Don't forget your daily proof submission!</div><div style="font-size:12.5px;color:var(--text2)">${when} with screenshots of your timer and questions solved.</div></div><button class="btn btn-sm" style="background:var(--warning);color:#fff;border:none;flex-shrink:0" onclick="nav('submit')">Submit Now →</button></div>`;
+    banner.innerHTML=`<div class="deadline-banner active"><span style="font-size:18px">📸</span><div style="flex:1"><div style="font-weight:700;font-size:13.5px;color:var(--warning-dark)">Don't forget your daily proof submission!</div><div style="font-size:12.5px;color:var(--text2)">${when} with screenshots of your timer and questions solved.</div></div><button class="btn btn-sm" style="background:var(--fill-warning);color:var(--on-fill);border:none;flex-shrink:0" onclick="nav('submit')">Submit Now →</button></div>`;
     document.getElementById('submitBadge').style.display='flex';
   } else {
     banner.innerHTML='<div class="deadline-banner done"><span style="font-size:18px">✅</span><div><div style="font-weight:700;font-size:13.5px;color:var(--success-dark)">Today\'s proof submitted successfully!</div><div style="font-size:12.5px;color:var(--text2)">Submitted at '+fmtTime(todaySub)+'  ·  Status: '+renderStatusBadge(todaySub.status)+'</div></div></div>';
@@ -463,20 +518,20 @@ function openStatModal(type){
     const totalSecs=todaySessions.reduce((a,s)=>a+(s.duration||0),0);
     html=`<div style="text-align:center;margin-bottom:24px">
       <div style="font-size:48px;margin-bottom:8px">⏱</div>
-      <div style="font-size:32px;font-weight:700;color:var(--primary)">${fmtDur(totalSecs)}</div>
+      <div style="font-size:32px;font-weight:700;color:var(--primary-dark)">${fmtDur(totalSecs)}</div>
       <div style="color:var(--text3);font-size:13px;margin-top:4px">Total study time today</div>
     </div>
     <div style="font-weight:600;margin-bottom:12px;color:var(--text)">Today's Sessions (${todaySessions.length})</div>
     ${todaySessions.length?todaySessions.map(s=>`
       <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:var(--bg);border-radius:10px;margin-bottom:8px">
         <div style="font-weight:500">${s.subject||'Study'}</div>
-        <div style="color:var(--primary);font-weight:600">${fmtDur(s.duration||0)}</div>
+        <div style="color:var(--primary-dark);font-weight:600">${fmtDur(s.duration||0)}</div>
       </div>`).join(''):'<div style="color:var(--text3);text-align:center;padding:20px">No sessions recorded today yet.</div>'}`;
   } else if(type==='streak'){
     const history=S.submissions.slice(0,14).map(s=>({date:s.date,status:s.status}));
     html=`<div style="text-align:center;margin-bottom:24px">
       <div style="font-size:48px;margin-bottom:8px">🔥</div>
-      <div style="font-size:36px;font-weight:700;color:var(--success)">${u.streak||0}</div>
+      <div style="font-size:36px;font-weight:700;color:var(--success-dark)">${u.streak||0}</div>
       <div style="color:var(--text3);font-size:14px">Day Streak</div>
       <div style="margin-top:8px;font-size:13px;color:var(--text2)">Longest streak: <strong>${u.longestStreak||u.streak||0} days</strong></div>
     </div>
@@ -490,17 +545,17 @@ function openStatModal(type){
     const top5=sorted.slice(0,5);
     html=`<div style="text-align:center;margin-bottom:24px">
       <div style="font-size:48px;margin-bottom:8px">🏆</div>
-      <div style="font-size:36px;font-weight:700;color:var(--warning)">${rank>0?'#'+rank:'#—'}</div>
+      <div style="font-size:36px;font-weight:700;color:var(--warning-dark)">${rank>0?'#'+rank:'#—'}</div>
       <div style="color:var(--text3);font-size:14px">Your Leaderboard Position</div>
       <div style="font-size:13px;color:var(--text2);margin-top:6px">Total study: <strong>${fmtHours(u.totalStudyHours||u.totalHours||0)}</strong></div>
     </div>
     <div style="font-weight:600;margin-bottom:12px">Top 5 Students</div>
     ${top5.map((s,i)=>{
       const isMe=String(s._id||s.id||s.userId)===String(myId);
-      return `<div style="display:flex;align-items:center;gap:12px;padding:10px 14px;background:${isMe?'var(--primary-light, #EFF6FF)':'var(--bg)'};border-radius:10px;margin-bottom:8px;${isMe?'border:1.5px solid var(--primary)':''}">
+      return `<div style="display:flex;align-items:center;gap:12px;padding:10px 14px;background:${isMe?'var(--primary-light)':'var(--bg)'};border-radius:10px;margin-bottom:8px;${isMe?'border:1.5px solid var(--primary)':''}">
         <div style="font-size:20px">${i===0?'🥇':i===1?'🥈':i===2?'🥉':'#'+(i+1)}</div>
         <div style="flex:1;font-weight:${isMe?'700':'500'}">${s.name||s.username||'Student'}${isMe?' (You)':''}</div>
-        <div style="color:var(--primary);font-weight:600">${fmtHours(s.totalHours||s.hrs||0)}</div>
+        <div style="color:var(--primary-dark);font-weight:600">${fmtHours(s.totalHours||s.hrs||0)}</div>
       </div>`;
     }).join('')}`;
   } else if(type==='status'){
@@ -510,25 +565,25 @@ function openStatModal(type){
       <div style="margin-bottom:8px">${todaySub?renderStatusBadge(todaySub.status):'<span class="status-badge s-pending">⏳ Pending</span>'}</div>
       <div style="color:var(--text3);font-size:13px">${todaySub?'Submitted at '+fmtTime(todaySub):'No submission yet today'}</div>
     </div>
-    <div style="display:flex;gap:10px;background:#F0FDF4;border-radius:10px;padding:12px 14px;margin-bottom:16px">
+    <div style="display:flex;gap:10px;background:var(--success-light);border-radius:10px;padding:12px 14px;margin-bottom:16px">
       <div style="flex:1;text-align:center">
-        <div style="font-size:22px;font-weight:700;color:#16A34A">${lr}</div>
-        <div style="font-size:12px;color:#16A34A;font-weight:600">🏖️ Leaves Left</div>
+        <div style="font-size:22px;font-weight:700;color:var(--success-dark)">${lr}</div>
+        <div style="font-size:12px;color:var(--success-dark);font-weight:600">🏖️ Leaves Left</div>
       </div>
-      <div style="width:1px;background:#BBF7D0"></div>
+      <div style="width:1px;background:var(--st-completed-br)"></div>
       <div style="flex:1;text-align:center">
-        <div style="font-size:22px;font-weight:700;color:#D97706">${hdr}</div>
-        <div style="font-size:12px;color:#D97706;font-weight:600">🟡 Half Days Left</div>
+        <div style="font-size:22px;font-weight:700;color:var(--warning-dark)">${hdr}</div>
+        <div style="font-size:12px;color:var(--warning-dark);font-weight:600">🟡 Half Days Left</div>
       </div>
     </div>
     <div style="font-weight:600;margin-bottom:12px">Your Stats</div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
       <div style="background:var(--bg);border-radius:10px;padding:14px;text-align:center">
-        <div style="font-size:22px;font-weight:700;color:var(--success)">${u.totalCompleted||0}</div>
+        <div style="font-size:22px;font-weight:700;color:var(--success-dark)">${u.totalCompleted||0}</div>
         <div style="font-size:12px;color:var(--text3)">✅ Completed</div>
       </div>
       <div style="background:var(--bg);border-radius:10px;padding:14px;text-align:center">
-        <div style="font-size:22px;font-weight:700;color:var(--warning)">${u.totalHalfDay||0}</div>
+        <div style="font-size:22px;font-weight:700;color:var(--warning-dark)">${u.totalHalfDay||0}</div>
         <div style="font-size:12px;color:var(--text3)">🟡 Half Days Used</div>
       </div>
       <div style="background:var(--bg);border-radius:10px;padding:14px;text-align:center">
@@ -536,11 +591,11 @@ function openStatModal(type){
         <div style="font-size:12px;color:var(--text3)">🏖️ Leaves Used</div>
       </div>
       <div style="background:var(--bg);border-radius:10px;padding:14px;text-align:center">
-        <div style="font-size:22px;font-weight:700;color:var(--error)">${u.totalFines||0}</div>
+        <div style="font-size:22px;font-weight:700;color:var(--error-dark)">${u.totalFines||0}</div>
         <div style="font-size:12px;color:var(--text3)">🔴 Fines</div>
       </div>
     </div>
-    ${todaySub&&todaySub.adminNotes?`<div style="margin-top:16px;padding:12px;background:#FFF7ED;border-radius:10px;font-size:13px;color:var(--text2)"><strong>Admin Note:</strong> ${todaySub.adminNotes}</div>`:''}
+    ${todaySub&&todaySub.adminNotes?`<div style="margin-top:16px;padding:12px;background:var(--warning-light);border-radius:10px;font-size:13px;color:var(--text2)"><strong>Admin Note:</strong> ${todaySub.adminNotes}</div>`:''}
     ${!todaySub?`<div style="margin-top:16px"><button class="btn btn-primary" style="width:100%" onclick="closeStatModal();nav('submit')">Submit Today's Proof →</button></div>`:''}`;
   }
   document.getElementById('statModalContent').innerHTML=html;
@@ -582,7 +637,7 @@ function isEmergencySubmission(sub){
 // Used in admin verify cards and the verify modal.
 function renderScreenshotTile(url, label, icon, size='small'){
   const safeUrl = (url || '').replace(/'/g, "\\'");
-  const fallbackInline = `this.style.display='none';this.parentElement.innerHTML='<div style=\\'display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:6px;color:#94a3b8;background:#F8FAFC;border-radius:8px\\'><span style=\\'font-size:${size==='large'?32:24}px\\'>${icon}</span><span style=\\'font-size:${size==='large'?13:11.5}px;font-weight:500\\'>Screenshot unavailable</span></div>';`;
+  const fallbackInline = `this.style.display='none';this.parentElement.innerHTML='<div style=\\'display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:6px;color:var(--text3);background:var(--bg2);border-radius:8px\\'><span style=\\'font-size:${size==='large'?32:24}px\\'>${icon}</span><span style=\\'font-size:${size==='large'?13:11.5}px;font-weight:500\\'>Screenshot unavailable</span></div>';`;
   if (!url) {
     return `<div class="sub-ss" style="font-size:12px;color:var(--text3);flex-direction:column;gap:4px"><span style="font-size:${size==='large'?32:24}px">${icon}</span><span>No screenshot</span></div>`;
   }
@@ -600,7 +655,7 @@ function renderStatusBadge(s){
 function renderRecentSessions(){
   const sessions=S.sessions.slice(0,5);
   if(!sessions.length){
-    document.getElementById('recentSessions').innerHTML='<div style="color:var(--text3);font-size:13px;padding:20px 0;text-align:center">No sessions yet. <a style="color:var(--primary);cursor:pointer" onclick="nav(\'timer\')">Start studying →</a></div>';
+    document.getElementById('recentSessions').innerHTML='<div style="color:var(--text3);font-size:13px;padding:20px 0;text-align:center">No sessions yet. <a style="color:var(--primary-dark);cursor:pointer" onclick="nav(\'timer\')">Start studying →</a></div>';
     return;
   }
   document.getElementById('recentSessions').innerHTML=sessions.map(s=>`
@@ -643,10 +698,10 @@ function renderSubmitAllowance(){
   // Update count badges on cards
   const lc=document.getElementById('leaveCount');
   if(lc) lc.textContent=lr>0?lr+' remaining':'None left';
-  if(lc) lc.style.color=lr>0?'#16A34A':'#EF4444';
+  if(lc) lc.style.color=lr>0?'var(--success-dark)':'#EF4444';
   const hc=document.getElementById('halfDayCount');
   if(hc) hc.textContent=hr>0?hr+' remaining':'None left';
-  if(hc) hc.style.color=hr>0?'#D97706':'#EF4444';
+  if(hc) hc.style.color=hr>0?'var(--warning-dark)':'#EF4444';
   // Visually disable cards with 0 count
   const leaveCard=document.getElementById('typeLeave');
   if(leaveCard){
@@ -667,8 +722,8 @@ function setSubmissionType(type){
   if(type==='halfday' && (u?.halfDaysRemaining??3)<=0){ toast('No half days remaining!','error'); return; }
   S.submissionType = type;
   const types = ['fullday','halfday','gt','leave','emergency'];
-  const colors = {fullday:'var(--primary)',halfday:'#D97706',gt:'#166534',leave:'#16A34A',emergency:'#1D4ED8'};
-  const bgs = {fullday:'#EFF6FF',halfday:'#FFFBEB',gt:'#DCFCE7',leave:'#F0FDF4',emergency:'#DBEAFE'};
+  const colors = {fullday:'var(--primary)',halfday:'var(--warning-dark)',gt:'var(--st-completed-fg)',leave:'var(--success-dark)',emergency:'var(--primary-dark)'};
+  const bgs = {fullday:'var(--primary-light)',halfday:'var(--warning-light)',gt:'var(--st-completed-bg)',leave:'var(--success-light)',emergency:'var(--st-pending-bg)'};
   const ids = {fullday:'typeFullDay',halfday:'typeHalfDay',gt:'typeGT',leave:'typeLeave',emergency:'typeEmergency'};
   types.forEach(t=>{
     const el=document.getElementById(ids[t]);
@@ -1258,7 +1313,7 @@ function renderLb(){
   document.getElementById('lbList').innerHTML=data.map((u,i)=>{
     const uid=u._id||u.id||u.userId;
     const avatar=u.avatar||(u.name?u.name[0].toUpperCase():'?');
-    const color=u.color||'#3B82F6';
+    const color=u.color||'var(--fill-primary)';
     return `
       <div class="lb-row ${uid===myId?'you':''}">
         <div class="lb-rank">${rankEmoji(i)||(i+1)}</div>
@@ -1332,12 +1387,12 @@ function openAnalyticsModal(type){
   if(type==='consistency'){
     html=`<div style="text-align:center;margin-bottom:24px">
       <div style="font-size:48px;margin-bottom:8px">📈</div>
-      <div style="font-size:36px;font-weight:700;color:var(--primary)">${consistPct}%</div>
+      <div style="font-size:36px;font-weight:700;color:var(--primary-dark)">${consistPct}%</div>
       <div style="color:var(--text3);font-size:14px">Consistency Rate</div>
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px">
       <div style="background:var(--bg);border-radius:10px;padding:14px;text-align:center">
-        <div style="font-size:22px;font-weight:700;color:var(--success)">${completed.length}</div>
+        <div style="font-size:22px;font-weight:700;color:var(--success-dark)">${completed.length}</div>
         <div style="font-size:12px;color:var(--text3)">✅ Completed days</div>
       </div>
       <div style="background:var(--bg);border-radius:10px;padding:14px;text-align:center">
@@ -1348,14 +1403,14 @@ function openAnalyticsModal(type){
     <div style="font-weight:600;margin-bottom:12px">Recent Completed Days</div>
     ${completed.slice(0,5).map(s=>`<div style="display:flex;justify-content:space-between;padding:10px 14px;background:var(--bg);border-radius:10px;margin-bottom:8px">
       <div style="color:var(--text2);font-size:13px">${s.date}</div>
-      <div style="color:var(--success);font-weight:600">${(s.hours||s.hoursStudied||0).toFixed(1)}h</div>
+      <div style="color:var(--success-dark);font-weight:600">${(s.hours||s.hoursStudied||0).toFixed(1)}h</div>
     </div>`).join('')||'<div style="color:var(--text3);text-align:center;padding:16px">No completed days yet.</div>'}`;
   } else if(type==='avghrs'){
     const bySubject={};
     subs.forEach(s=>{const subj=s.subject||'Other';bySubject[subj]=(bySubject[subj]||0)+(s.hours||s.hoursStudied||0);});
     html=`<div style="text-align:center;margin-bottom:24px">
       <div style="font-size:48px;margin-bottom:8px">⚡</div>
-      <div style="font-size:36px;font-weight:700;color:var(--success)">${avgHrs}h</div>
+      <div style="font-size:36px;font-weight:700;color:var(--success-dark)">${avgHrs}h</div>
       <div style="color:var(--text3);font-size:14px">Average daily study hours</div>
       <div style="font-size:13px;color:var(--text2);margin-top:4px">Total: <strong>${subs.reduce((a,s)=>a+(s.hours||s.hoursStudied||0),0).toFixed(1)}h</strong> across ${total} days</div>
     </div>
@@ -1363,17 +1418,17 @@ function openAnalyticsModal(type){
     ${Object.entries(bySubject).sort((a,b)=>b[1]-a[1]).map(([subj,hrs])=>`
       <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:var(--bg);border-radius:10px;margin-bottom:8px">
         <div style="font-weight:500">${subj}</div>
-        <div style="color:var(--success);font-weight:600">${hrs.toFixed(1)}h</div>
+        <div style="color:var(--success-dark);font-weight:600">${hrs.toFixed(1)}h</div>
       </div>`).join('')||'<div style="color:var(--text3);text-align:center;padding:16px">No data yet.</div>'}`;
   } else if(type==='goal'){
     html=`<div style="text-align:center;margin-bottom:24px">
       <div style="font-size:48px;margin-bottom:8px">🎯</div>
-      <div style="font-size:36px;font-weight:700;color:var(--warning)">${goalPct}%</div>
+      <div style="font-size:36px;font-weight:700;color:var(--warning-dark)">${goalPct}%</div>
       <div style="color:var(--text3);font-size:14px">Goal Hit Rate (days ≥ 4h)</div>
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px">
       <div style="background:var(--bg);border-radius:10px;padding:14px;text-align:center">
-        <div style="font-size:22px;font-weight:700;color:var(--warning)">${goalDays.length}</div>
+        <div style="font-size:22px;font-weight:700;color:var(--warning-dark)">${goalDays.length}</div>
         <div style="font-size:12px;color:var(--text3)">🎯 Goal days (≥4h)</div>
       </div>
       <div style="background:var(--bg);border-radius:10px;padding:14px;text-align:center">
@@ -1384,17 +1439,17 @@ function openAnalyticsModal(type){
     <div style="font-weight:600;margin-bottom:12px">Goal Achieved Days</div>
     ${goalDays.slice(0,5).map(s=>`<div style="display:flex;justify-content:space-between;padding:10px 14px;background:var(--bg);border-radius:10px;margin-bottom:8px">
       <div style="color:var(--text2);font-size:13px">${s.date}</div>
-      <div style="color:var(--warning);font-weight:600">${(s.hours||s.hoursStudied||0).toFixed(1)}h ✓</div>
+      <div style="color:var(--warning-dark);font-weight:600">${(s.hours||s.hoursStudied||0).toFixed(1)}h ✓</div>
     </div>`).join('')||'<div style="color:var(--text3);text-align:center;padding:16px">No goal days yet. Aim for 4h/day!</div>'}`;
   } else if(type==='fines'){
     html=`<div style="text-align:center;margin-bottom:24px">
       <div style="font-size:48px;margin-bottom:8px">🔴</div>
-      <div style="font-size:36px;font-weight:700;color:var(--error)">${fines.length}</div>
+      <div style="font-size:36px;font-weight:700;color:var(--error-dark)">${fines.length}</div>
       <div style="color:var(--text3);font-size:14px">Total Fines</div>
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:16px">
       <div style="background:var(--bg);border-radius:10px;padding:12px;text-align:center">
-        <div style="font-size:20px;font-weight:700;color:var(--error)">${fines.length}</div>
+        <div style="font-size:20px;font-weight:700;color:var(--error-dark)">${fines.length}</div>
         <div style="font-size:11px;color:var(--text3)">🔴 Fines</div>
       </div>
       <div style="background:var(--bg);border-radius:10px;padding:12px;text-align:center">
@@ -1402,15 +1457,15 @@ function openAnalyticsModal(type){
         <div style="font-size:11px;color:var(--text3)">❌ Leaves</div>
       </div>
       <div style="background:var(--bg);border-radius:10px;padding:12px;text-align:center">
-        <div style="font-size:20px;font-weight:700;color:var(--warning)">${halfdays.length}</div>
+        <div style="font-size:20px;font-weight:700;color:var(--warning-dark)">${halfdays.length}</div>
         <div style="font-size:11px;color:var(--text3)">🟡 Half Days</div>
       </div>
     </div>
     <div style="font-weight:600;margin-bottom:12px">Fine History</div>
-    ${fines.slice(0,5).map(s=>`<div style="display:flex;justify-content:space-between;padding:10px 14px;background:#FFF5F5;border-radius:10px;margin-bottom:8px">
+    ${fines.slice(0,5).map(s=>`<div style="display:flex;justify-content:space-between;padding:10px 14px;background:var(--error-light);border-radius:10px;margin-bottom:8px">
       <div style="color:var(--text2);font-size:13px">${s.date}</div>
       <span class="status-badge s-fine">🔴 Fine</span>
-    </div>`).join('')||'<div style="color:var(--success);text-align:center;padding:16px;font-weight:600">🎉 No fines! Great work!</div>'}`;
+    </div>`).join('')||'<div style="color:var(--success-dark);text-align:center;padding:16px;font-weight:600">🎉 No fines! Great work!</div>'}`;
   }
   document.getElementById('statModalContent').innerHTML=html;
   const modal=document.getElementById('statModal');
@@ -1478,7 +1533,7 @@ function getStudentFromSub(sub){
   const subUid=sub.userId?._id||sub.userId;
   // submissions may have userId populated as object
   if(sub.userId && typeof sub.userId === 'object') return sub.userId;
-  return allUsers.find(u=>(u._id||u.id)===subUid)||{name:'Unknown',avatar:'?',color:'#94A3B8'};
+  return allUsers.find(u=>(u._id||u.id)===subUid)||{name:'Unknown',avatar:'?',color:'var(--text3)'};
 }
 
 function renderAdminSubmissions(){
@@ -1493,7 +1548,7 @@ function renderAdminSubmissions(){
   grid.innerHTML=subs.map(sub=>{
     const student=getStudentFromSub(sub);
     const avatar=student.avatar||(student.name?student.name[0].toUpperCase():'?');
-    const color=student.color||'#94A3B8';
+    const color=student.color||'var(--fill-primary)';
     const subId=sub._id||sub.id;
     return `
       <div class="submission-card">
@@ -1516,15 +1571,15 @@ function renderAdminSubmissions(){
           </div>
           ${isLeaveSubmission(sub)
             ? (isEmergencySubmission(sub)
-              ?`<div style="background:#EFF6FF;border:1px solid #BFDBFE;border-radius:10px;padding:14px;text-align:center;margin-bottom:10px">
+              ?`<div style="background:var(--primary-light);border:1px solid var(--st-pending-br);border-radius:10px;padding:14px;text-align:center;margin-bottom:10px">
                   <div style="font-size:28px;margin-bottom:6px">🚑</div>
-                  <div style="font-weight:700;color:#1D4ED8;font-size:13px">Emergency Leave</div>
-                  <div style="font-size:11.5px;color:#1D4ED8;margin-top:2px">Outside the monthly leave quota</div>
+                  <div style="font-weight:700;color:var(--primary-dark);font-size:13px">Emergency Leave</div>
+                  <div style="font-size:11.5px;color:var(--primary-dark);margin-top:2px">Outside the monthly leave quota</div>
                 </div>`
-              :`<div style="background:#F0FDF4;border:1px solid #BBF7D0;border-radius:10px;padding:14px;text-align:center;margin-bottom:10px">
+              :`<div style="background:var(--success-light);border:1px solid var(--st-completed-br);border-radius:10px;padding:14px;text-align:center;margin-bottom:10px">
                   <div style="font-size:28px;margin-bottom:6px">🏖️</div>
-                  <div style="font-weight:700;color:#16A34A;font-size:13px">Leave Request</div>
-                  <div style="font-size:11.5px;color:#16A34A;margin-top:2px">No screenshots required</div>
+                  <div style="font-weight:700;color:var(--success-dark);font-size:13px">Leave Request</div>
+                  <div style="font-size:11.5px;color:var(--success-dark);margin-top:2px">No screenshots required</div>
                 </div>`)
             : sub.submissionType==='gt'
             ?`<div class="sub-screenshots" style="grid-template-columns:1fr">
@@ -1561,10 +1616,10 @@ function openVerifyModal(subId){
   document.getElementById('vModalHours').textContent=sub.hours+'h claimed';
   document.getElementById('vAdminNotes').value=sub.adminNotes||'';
   if(isLeaveSubmission(sub)){
-    document.getElementById('vModalScreenshots').innerHTML = `<div style="grid-column:span 2;background:#F0FDF4;border:1px solid #BBF7D0;border-radius:12px;padding:24px;text-align:center">
+    document.getElementById('vModalScreenshots').innerHTML = `<div style="grid-column:span 2;background:var(--success-light);border:1px solid var(--st-completed-br);border-radius:12px;padding:24px;text-align:center">
       <div style="font-size:42px;margin-bottom:8px">🏖️</div>
-      <div style="font-weight:700;color:#16A34A;font-size:15px">Leave Request</div>
-      <div style="font-size:13px;color:#16A34A;margin-top:4px">Student requested leave — no screenshots required</div>
+      <div style="font-weight:700;color:var(--success-dark);font-size:15px">Leave Request</div>
+      <div style="font-size:13px;color:var(--success-dark);margin-top:4px">Student requested leave — no screenshots required</div>
     </div>`;
   } else {
     const ssHtml = [
@@ -1695,10 +1750,10 @@ function renderMyRegister(){
 
   const low=data.deposit<=0;
   document.getElementById('myRegDeposit').innerHTML=`
-    <div style="font-family:var(--display);font-size:28px;font-weight:800;color:${low?'#DC2626':'var(--text)'}">₹${data.deposit}</div>
+    <div style="font-family:var(--display);font-size:28px;font-weight:800;color:${low?'var(--error-dark)':'var(--text)'}">₹${data.deposit}</div>
     <div style="font-size:12.5px;color:var(--text2);margin-top:6px">
       ${data.finesThisMonth
-        ? `${data.finesThisMonth} fine${data.finesThisMonth>1?'s':''} this month · <strong style="color:#DC2626">−₹${data.deductedThisMonth}</strong>`
+        ? `${data.finesThisMonth} fine${data.finesThisMonth>1?'s':''} this month · <strong style="color:var(--error-dark)">−₹${data.deductedThisMonth}</strong>`
         : 'No fines this month 🎉'}
     </div>
     <div style="font-size:11.5px;color:var(--text3);margin-top:6px">Each fine costs ₹${data.fineAmount}.</div>`;
@@ -1713,13 +1768,13 @@ function renderMyRegister(){
 // ===================== MONTHLY REGISTER =====================
 // The spreadsheet replacement: students down the side, days across the top.
 const REG_STATUS = {
-  completed:{label:'✅', full:'Completed', cls:'rg-completed', swatch:'#DCFCE7'},
-  gt:       {label:'GT', full:'Grand Test', cls:'rg-gt', swatch:'#166534'},
-  halfday:  {label:'½',  full:'Half Day', cls:'rg-halfday', swatch:'#F3E8FF'},
-  leave:    {label:'L',  full:'Leave', cls:'rg-leave', swatch:'#374151'},
-  emergency:{label:'🚑', full:'Emergency Leave', cls:'rg-emergency', swatch:'#1D4ED8'},
-  fine:     {label:'F',  full:'Fine', cls:'rg-fine', swatch:'#DC2626'},
-  pending:  {label:'•',  full:'Awaiting review', cls:'rg-pending', swatch:'#DBEAFE'},
+  completed:{label:'✅', full:'Completed', cls:'rg-completed', swatch:'var(--st-completed-bg)'},
+  gt:       {label:'GT', full:'Grand Test', cls:'rg-gt', swatch:'var(--st-gt-bg)'},
+  halfday:  {label:'½',  full:'Half Day', cls:'rg-halfday', swatch:'var(--st-halfday-bg)'},
+  leave:    {label:'L',  full:'Leave', cls:'rg-leave', swatch:'var(--st-leave-bg)'},
+  emergency:{label:'🚑', full:'Emergency Leave', cls:'rg-emergency', swatch:'var(--st-emergency-bg)'},
+  fine:     {label:'F',  full:'Fine', cls:'rg-fine', swatch:'var(--st-fine-bg)'},
+  pending:  {label:'•',  full:'Awaiting review', cls:'rg-pending', swatch:'var(--st-pending-bg)'},
 };
 const REG_SETTABLE = ['completed','gt','halfday','leave','emergency','fine'];
 
@@ -1801,7 +1856,7 @@ function renderRegister(){
       <td class="rg-name" title="${st.email}">
         <div>${st.name}</div><div class="rg-sub">${type}</div>
       </td>
-      <td class="rg-meta rg-deposit" style="${low?'color:#DC2626':''}" title="Click to change the deposit"
+      <td class="rg-meta rg-deposit" style="${low?'color:var(--error-dark)':''}" title="Click to change the deposit"
           onclick="editDeposit('${st.id}','${(st.name||'').replace(/'/g,"\\'")}',${st.deposit})">₹${st.deposit}</td>
       <td class="rg-meta">${st.leavesRemaining}</td>
       <td class="rg-meta">${st.halfDaysRemaining}</td>
@@ -1826,7 +1881,7 @@ function openCellMenu(event, studentId, date){
       return `<div class="cell-menu-item" onclick="setCellStatus('${studentId}','${date}','${s}')">
         <span class="rg-legend-swatch" style="background:${m.swatch}"></span>
         <span style="flex:1">${m.full}</span>
-        ${active?'<span style="color:var(--primary);font-weight:700">✓</span>':''}
+        ${active?'<span style="color:var(--primary-dark);font-weight:700">✓</span>':''}
       </div>`;
     }).join('')}
     ${cell?.hasScreenshots
@@ -2012,12 +2067,12 @@ function renderAdminUsers(){
     const today=u.todayStatus?.status;
     const safeName=(u.name||'').replace(/'/g,"\\'");
     return `<tr${u.isActive===false?' style="opacity:.55"':''}>
-      <td><div style="display:flex;align-items:center;gap:10px"><div style="width:32px;height:32px;border-radius:8px;background:#3B82F6;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px;color:#fff">${avatar}</div><span style="font-weight:600;color:var(--text)">${u.name}</span></div></td>
+      <td><div style="display:flex;align-items:center;gap:10px"><div style="width:32px;height:32px;border-radius:8px;background:var(--fill-primary);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px;color:var(--on-fill)">${avatar}</div><span style="font-weight:600;color:var(--text)">${u.name}</span></div></td>
       <td style="font-size:13px">${u.email||'—'}</td>
       <td style="font-family:var(--display);font-weight:600">${fmtHours(u.totalStudyHours||0)}</td>
-      <td><span style="color:var(--warning);font-weight:600">🔥 ${u.streak||0}d</span></td>
+      <td><span style="color:var(--warning-dark);font-weight:600">🔥 ${u.streak||0}d</span></td>
       <td><span style="color:var(--success-dark);font-weight:600">${u.totalCompleted||0}</span></td>
-      <td><span style="color:var(--error);font-weight:600">${u.totalFines||0}</span></td>
+      <td><span style="color:var(--error-dark);font-weight:600">${u.totalFines||0}</span></td>
       <td>${today&&today!=='none'?renderStatusBadge(today):'<span class="pill pill-gray">Not submitted</span>'}</td>
       <td style="white-space:nowrap">
         <button class="btn btn-secondary btn-sm" onclick="resetStudentPassword('${uid}','${safeName}')">Reset Password</button>
@@ -2108,7 +2163,7 @@ function initCharts(){
   // Safe to call again after new data arrives; Chart.js refuses to reuse a canvas.
   Object.values(S.charts||{}).forEach(c=>{ try{ c.destroy(); }catch{} });
   S.charts={};
-  const tc='#94A3B8',gc='rgba(226,232,240,0.8)';
+  const tc=themeToken('--text3'), gc=themeToken('--border');
   const hoursByDate=myHoursByDate();
   const wCtx=document.getElementById('weekChart').getContext('2d');
   // Last 7 days, oldest first, labelled by weekday.
@@ -2141,7 +2196,7 @@ function initCharts(){
       datasets:[{
         data:subjectNames.length?subjectNames.map(n=>+bySubject[n].toFixed(1)):[1],
         backgroundColor:['#3B82F6','#8B5CF6','#22C55E','#F59E0B','#EF4444','#14B8A6'],
-        borderColor:'#fff',borderWidth:3,hoverOffset:6
+        borderColor:themeToken('--white'),borderWidth:3,hoverOffset:6
       }]
     },
     options:{responsive:true,maintainAspectRatio:false,cutout:'70%',plugins:{legend:{position:'right',labels:{color:tc,boxWidth:10,padding:10}}}}
@@ -2208,6 +2263,7 @@ document.addEventListener('keydown',e=>{
 });
 
 (async ()=>{
+  initTheme();
   const days=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
   const now=new Date();
   const h=now.getHours();
